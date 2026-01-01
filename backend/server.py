@@ -393,7 +393,8 @@ async def register(user_data: UserCreate):
     await db.users.insert_one(user_dict)
     
     token = create_token(user_dict["id"], user_dict["role"])
-    user_response = {k: v for k, v in user_dict.items() if k != "password"}
+    # Remove sensitive/internal fields for response
+    user_response = {k: v for k, v in user_dict.items() if k not in ["password", "_id"]}
     
     return TokenResponse(access_token=token, user=user_response)
 
