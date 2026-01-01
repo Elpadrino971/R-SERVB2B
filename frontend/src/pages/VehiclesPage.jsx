@@ -119,14 +119,14 @@ const VehiclesPage = () => {
                       {i18n.language === 'fr' ? 'Catégorie' : 'Category'}
                     </label>
                     <Select 
-                      value={filters.category} 
-                      onValueChange={(v) => setFilters({...filters, category: v})}
+                      value={filters.category || "all"} 
+                      onValueChange={(v) => setFilters({...filters, category: v === "all" ? "" : v})}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={i18n.language === 'fr' ? 'Toutes' : 'All'} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">
+                        <SelectItem value="all">
                           {i18n.language === 'fr' ? 'Toutes les catégories' : 'All categories'}
                         </SelectItem>
                         {categories.map((cat) => (
@@ -144,14 +144,14 @@ const VehiclesPage = () => {
                       {i18n.language === 'fr' ? 'Carburant' : 'Fuel Type'}
                     </label>
                     <Select 
-                      value={filters.fuel_type} 
-                      onValueChange={(v) => setFilters({...filters, fuel_type: v})}
+                      value={filters.fuel_type || "all"} 
+                      onValueChange={(v) => setFilters({...filters, fuel_type: v === "all" ? "" : v})}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={i18n.language === 'fr' ? 'Tous' : 'All'} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">{i18n.language === 'fr' ? 'Tous' : 'All'}</SelectItem>
+                        <SelectItem value="all">{i18n.language === 'fr' ? 'Tous' : 'All'}</SelectItem>
                         {fuelTypes.map((fuel) => (
                           <SelectItem key={fuel} value={fuel} className="capitalize">
                             {fuel}
@@ -167,14 +167,14 @@ const VehiclesPage = () => {
                       {i18n.language === 'fr' ? 'Transmission' : 'Transmission'}
                     </label>
                     <Select 
-                      value={filters.transmission} 
-                      onValueChange={(v) => setFilters({...filters, transmission: v})}
+                      value={filters.transmission || "all"} 
+                      onValueChange={(v) => setFilters({...filters, transmission: v === "all" ? "" : v})}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={i18n.language === 'fr' ? 'Toutes' : 'All'} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">{i18n.language === 'fr' ? 'Toutes' : 'All'}</SelectItem>
+                        <SelectItem value="all">{i18n.language === 'fr' ? 'Toutes' : 'All'}</SelectItem>
                         {transmissions.map((trans) => (
                           <SelectItem key={trans} value={trans} className="capitalize">
                             {trans === 'manual' 
@@ -192,14 +192,14 @@ const VehiclesPage = () => {
                       {i18n.language === 'fr' ? 'Passagers min.' : 'Min. Passengers'}
                     </label>
                     <Select 
-                      value={filters.passengers} 
-                      onValueChange={(v) => setFilters({...filters, passengers: v})}
+                      value={filters.passengers || "all"} 
+                      onValueChange={(v) => setFilters({...filters, passengers: v === "all" ? "" : v})}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={i18n.language === 'fr' ? 'Tous' : 'Any'} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">{i18n.language === 'fr' ? 'Tous' : 'Any'}</SelectItem>
+                        <SelectItem value="all">{i18n.language === 'fr' ? 'Tous' : 'Any'}</SelectItem>
                         {[2, 4, 5, 7, 9].map((num) => (
                           <SelectItem key={num} value={num.toString()}>
                             {num}+ {i18n.language === 'fr' ? 'places' : 'seats'}
@@ -230,14 +230,14 @@ const VehiclesPage = () => {
                 <Card className="lg:hidden mb-4">
                   <CardContent className="p-4 grid grid-cols-2 gap-4">
                     <Select 
-                      value={filters.category} 
-                      onValueChange={(v) => setFilters({...filters, category: v})}
+                      value={filters.category || "all"} 
+                      onValueChange={(v) => setFilters({...filters, category: v === "all" ? "" : v})}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={i18n.language === 'fr' ? 'Catégorie' : 'Category'} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">{i18n.language === 'fr' ? 'Toutes' : 'All'}</SelectItem>
+                        <SelectItem value="all">{i18n.language === 'fr' ? 'Toutes' : 'All'}</SelectItem>
                         {categories.map((cat) => (
                           <SelectItem key={cat.id} value={cat.id}>
                             {i18n.language === 'fr' ? cat.name_fr : cat.name_en}
@@ -247,14 +247,14 @@ const VehiclesPage = () => {
                     </Select>
 
                     <Select 
-                      value={filters.fuel_type} 
-                      onValueChange={(v) => setFilters({...filters, fuel_type: v})}
+                      value={filters.fuel_type || "all"} 
+                      onValueChange={(v) => setFilters({...filters, fuel_type: v === "all" ? "" : v})}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={i18n.language === 'fr' ? 'Carburant' : 'Fuel'} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">{i18n.language === 'fr' ? 'Tous' : 'All'}</SelectItem>
+                        <SelectItem value="all">{i18n.language === 'fr' ? 'Tous' : 'All'}</SelectItem>
                         {fuelTypes.map((fuel) => (
                           <SelectItem key={fuel} value={fuel} className="capitalize">{fuel}</SelectItem>
                         ))}
