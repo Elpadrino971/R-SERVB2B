@@ -1,0 +1,170 @@
+{
+  "design_system": {
+    "brand_identity": {
+      "name": "Auto Discount Location",
+      "tone": "Professional, Efficient, Trustworthy, Modern",
+      "archetype": "Swiss & High-Contrast (Dashboard) / Jewel & Luxury (Marketing)",
+      "logo_url": "https://customer-assets.emergentagent.com/job_634ba54c-5254-4232-8d61-233474b6274f/artifacts/hvaqrgsp_te%CC%81le%CC%81chargement.png"
+    },
+    "colors": {
+      "primary": {
+        "DEFAULT": "#3D3A6B",
+        "foreground": "#FFFFFF",
+        "50": "#EBEAF4",
+        "100": "#D6D4E8",
+        "200": "#ADACD1",
+        "300": "#8583BA",
+        "400": "#5C59A3",
+        "500": "#3D3A6B",
+        "600": "#312E56",
+        "700": "#252240",
+        "800": "#18172B",
+        "900": "#0C0B15"
+      },
+      "secondary": {
+        "DEFAULT": "#F5A623",
+        "foreground": "#000000",
+        "50": "#FEF6E9",
+        "100": "#FDECD3",
+        "200": "#FCD9A7",
+        "300": "#FAC67B",
+        "400": "#F9B34F",
+        "500": "#F5A623",
+        "600": "#C4851C",
+        "700": "#936415",
+        "800": "#62420E",
+        "900": "#312107"
+      },
+      "accent": {
+        "DEFAULT": "#F3F4F6",
+        "foreground": "#1F2937"
+      },
+      "background": "#FFFFFF",
+      "foreground": "#0F172A",
+      "muted": "#F1F5F9",
+      "muted_foreground": "#64748B",
+      "border": "#E2E8F0",
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444"
+    },
+    "typography": {
+      "font_family": {
+        "heading": ["Outfit", "sans-serif"],
+        "body": ["Inter", "sans-serif"],
+        "mono": ["JetBrains Mono", "monospace"]
+      },
+      "scale": {
+        "h1": "text-4xl md:text-5xl font-bold tracking-tight",
+        "h2": "text-3xl md:text-4xl font-semibold tracking-tight",
+        "h3": "text-2xl font-semibold",
+        "h4": "text-xl font-medium",
+        "body_lg": "text-lg leading-relaxed",
+        "body": "text-base leading-relaxed",
+        "small": "text-sm font-medium leading-none"
+      }
+    },
+    "spacing": {
+      "container_padding": "p-6 md:p-12 lg:p-16",
+      "section_gap": "gap-12 md:gap-24",
+      "component_gap": "gap-4 md:gap-6"
+    },
+    "radius": {
+      "default": "rounded-lg",
+      "button": "rounded-md",
+      "card": "rounded-xl"
+    },
+    "shadows": {
+      "card": "shadow-sm hover:shadow-md transition-shadow duration-200",
+      "dropdown": "shadow-lg border border-slate-100",
+      "button": "shadow-sm"
+    }
+  },
+  "layout_strategies": {
+    "marketing": {
+      "grid_type": "Tetris Grid",
+      "description": "Asymmetrical layouts with large imagery and bold typography. Use the 'Tetris' grid for feature showcases.",
+      "background": "White or very light gray (slate-50). Hero sections can use deep purple (#3D3A6B) backgrounds."
+    },
+    "dashboard": {
+      "grid_type": "Control Room Grid",
+      "description": "Dense, data-focused layout. Sidebar navigation (fixed), Top header (sticky), Main content area with card-based widgets.",
+      "background": "bg-slate-50/50"
+    },
+    "auth": {
+      "style": "Split Screen",
+      "description": "Left side: Branding/Image (Deep Purple overlay). Right side: Clean form."
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#F5A623] text-black hover:bg-[#F5A623]/90 font-semibold shadow-sm",
+      "secondary": "bg-white text-[#3D3A6B] border border-[#3D3A6B] hover:bg-[#3D3A6B]/5 font-medium",
+      "ghost": "hover:bg-slate-100 text-slate-700",
+      "destructive": "bg-red-500 text-white hover:bg-red-600"
+    },
+    "cards": {
+      "base": "bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden",
+      "hover_effect": "hover:-translate-y-1 hover:shadow-md transition-all duration-300"
+    },
+    "inputs": {
+      "base": "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D3A6B] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    },
+    "navigation": {
+      "sidebar": "bg-[#3D3A6B] text-white w-64 hidden md:flex flex-col fixed h-full",
+      "sidebar_link": "flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 rounded-md transition-colors",
+      "sidebar_link_active": "bg-[#F5A623] text-black hover:bg-[#F5A623]"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-md bg-white/70 border-b border-white/20",
+    "gradients": {
+      "hero": "bg-gradient-to-br from-[#3D3A6B] to-[#252240]",
+      "accent": "bg-gradient-to-r from-[#F5A623] to-[#F9B34F]"
+    },
+    "textures": "Use subtle noise texture on solid purple backgrounds to add depth."
+  },
+  "assets": {
+    "images": {
+      "hero_car": {
+        "url": "https://images.pexels.com/photos/3024008/pexels-photo-3024008.jpeg",
+        "alt": "Luxury car fleet",
+        "usage": "Landing page hero, Vehicle catalog header"
+      },
+      "agent_working": {
+        "url": "https://images.pexels.com/photos/5716001/pexels-photo-5716001.jpeg",
+        "alt": "Travel agent working",
+        "usage": "Agent portal login, About section"
+      },
+      "business_meeting": {
+        "url": "https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg",
+        "alt": "Business handshake",
+        "usage": "Corporate portal, Partnership page"
+      },
+      "landscape": {
+        "url": "https://images.pexels.com/photos/35414303/pexels-photo-35414303.jpeg",
+        "alt": "Canadian landscape",
+        "usage": "Backgrounds, Destination highlights"
+      }
+    },
+    "icons": {
+      "library": "lucide-react",
+      "style": "Stroke width 1.5px, rounded joins"
+    }
+  },
+  "universal_guidelines": {
+    "general": [
+      "Do not use generic centered layouts.",
+      "Use 2-3x more spacing than typical designs.",
+      "Every interaction needs micro-animations.",
+      "Use 'sonner' for toasts.",
+      "All interactive elements must have data-testid attributes."
+    ],
+    "accessibility": [
+      "Ensure text contrast ratio of 4.5:1.",
+      "Interactive elements must have focus states.",
+      "Use semantic HTML."
+    ]
+  },
+  "instructions_to_main_agent": "Follow the color palette strictly. Use the provided image URLs for specific sections. Implement the 'Control Room' grid for the dashboard and 'Tetris' grid for marketing pages. Ensure the sidebar in the dashboard uses the deep purple brand color."
+}
