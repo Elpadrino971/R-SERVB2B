@@ -10,13 +10,42 @@ import { LoginPage, RegisterPage } from './pages/AuthPages';
 import VehiclesPage from './pages/VehiclesPage';
 import AgenciesPage from './pages/AgenciesPage';
 import FAQPage from './pages/FAQPage';
+import BlogPage from './pages/BlogPage';
+import EventsPage from './pages/EventsPage';
+import PartnersPage from './pages/PartnersPage';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
 
-// Dashboard Pages
+// Agent Pages
 import AgentDashboard from './pages/AgentDashboard';
+import AgentReservationsPage from './pages/AgentReservationsPage';
+import BookingPage from './pages/BookingPage';
+import AgentCommissionsPage from './pages/AgentCommissionsPage';
+import AgentChallengesPage from './pages/AgentChallengesPage';
+import AgentProfilePage from './pages/AgentProfilePage';
+
+// Admin Pages
 import AdminDashboard from './pages/AdminDashboard';
+import AdminReservationsPage from './pages/AdminReservationsPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminVehiclesPage from './pages/AdminVehiclesPage';
+import AdminAgenciesPage from './pages/AdminAgenciesPage';
+import AdminPricingPage from './pages/AdminPricingPage';
+import AdminChallengesPage from './pages/AdminChallengesPage';
+import AdminBlogPage from './pages/AdminBlogPage';
+import AdminEventsPage from './pages/AdminEventsPage';
+
+// Company Pages
+import CompanyDashboard from './pages/CompanyDashboard';
+import CompanyReservationsPage from './pages/CompanyReservationsPage';
+import CompanyDriversPage from './pages/CompanyDriversPage';
+import CompanyProfilePage from './pages/CompanyProfilePage';
+
+// Influencer Pages
+import InfluencerDashboard from './pages/InfluencerDashboard';
+import InfluencerCodesPage from './pages/InfluencerCodesPage';
+import InfluencerProfilePage from './pages/InfluencerProfilePage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -59,9 +88,9 @@ function AppRoutes() {
       <Route path="/vehicles" element={<VehiclesPage />} />
       <Route path="/agencies" element={<AgenciesPage />} />
       <Route path="/faq" element={<FAQPage />} />
-      <Route path="/blog" element={<PlaceholderPage title="Blog" />} />
-      <Route path="/partners" element={<PlaceholderPage title="Partenaires" />} />
-      <Route path="/events" element={<PlaceholderPage title="Événements" />} />
+      <Route path="/blog" element={<BlogPage />} />
+      <Route path="/partners" element={<PartnersPage />} />
+      <Route path="/events" element={<EventsPage />} />
       <Route path="/contact" element={<PlaceholderPage title="Contact" />} />
 
       {/* Agent Dashboard */}
@@ -74,11 +103,11 @@ function AppRoutes() {
         }
       >
         <Route index element={<AgentDashboard />} />
-        <Route path="reservations" element={<PlaceholderPage title="Mes Réservations" />} />
-        <Route path="reservations/new" element={<PlaceholderPage title="Nouvelle Réservation" />} />
-        <Route path="commissions" element={<PlaceholderPage title="Mes Commissions" />} />
-        <Route path="challenges" element={<PlaceholderPage title="Challenges" />} />
-        <Route path="profile" element={<PlaceholderPage title="Mon Profil" />} />
+        <Route path="reservations" element={<AgentReservationsPage />} />
+        <Route path="reservations/new" element={<BookingPage />} />
+        <Route path="commissions" element={<AgentCommissionsPage />} />
+        <Route path="challenges" element={<AgentChallengesPage />} />
+        <Route path="profile" element={<AgentProfilePage />} />
       </Route>
 
       {/* Company Dashboard */}
@@ -90,10 +119,10 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<PlaceholderPage title="Dashboard Entreprise" />} />
-        <Route path="reservations" element={<PlaceholderPage title="Réservations" />} />
-        <Route path="drivers" element={<PlaceholderPage title="Conducteurs" />} />
-        <Route path="profile" element={<PlaceholderPage title="Profil Entreprise" />} />
+        <Route index element={<CompanyDashboard />} />
+        <Route path="reservations" element={<CompanyReservationsPage />} />
+        <Route path="drivers" element={<CompanyDriversPage />} />
+        <Route path="profile" element={<CompanyProfilePage />} />
       </Route>
 
       {/* Influencer Dashboard */}
@@ -105,9 +134,9 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<PlaceholderPage title="Dashboard Influenceur" />} />
-        <Route path="codes" element={<PlaceholderPage title="Mes Codes Promo" />} />
-        <Route path="profile" element={<PlaceholderPage title="Mon Profil" />} />
+        <Route index element={<InfluencerDashboard />} />
+        <Route path="codes" element={<InfluencerCodesPage />} />
+        <Route path="profile" element={<InfluencerProfilePage />} />
       </Route>
 
       {/* Admin Dashboard */}
@@ -120,15 +149,15 @@ function AppRoutes() {
         }
       >
         <Route index element={<AdminDashboard />} />
-        <Route path="reservations" element={<PlaceholderPage title="Toutes les Réservations" />} />
-        <Route path="users" element={<PlaceholderPage title="Gestion Utilisateurs" />} />
-        <Route path="vehicles" element={<PlaceholderPage title="Gestion Véhicules" />} />
-        <Route path="agencies" element={<PlaceholderPage title="Gestion Agences" />} />
-        <Route path="pricing" element={<PlaceholderPage title="Gestion Tarifs" />} />
-        <Route path="challenges" element={<PlaceholderPage title="Gestion Challenges" />} />
-        <Route path="blog" element={<PlaceholderPage title="Gestion Blog" />} />
-        <Route path="events" element={<PlaceholderPage title="Gestion Événements" />} />
-        <Route path="stats" element={<PlaceholderPage title="Statistiques" />} />
+        <Route path="reservations" element={<AdminReservationsPage />} />
+        <Route path="users" element={<AdminUsersPage />} />
+        <Route path="vehicles" element={<AdminVehiclesPage />} />
+        <Route path="agencies" element={<AdminAgenciesPage />} />
+        <Route path="pricing" element={<AdminPricingPage />} />
+        <Route path="challenges" element={<AdminChallengesPage />} />
+        <Route path="blog" element={<AdminBlogPage />} />
+        <Route path="events" element={<AdminEventsPage />} />
+        <Route path="stats" element={<PlaceholderPage title="Statistiques Avancées" />} />
       </Route>
 
       {/* Payment Routes */}
