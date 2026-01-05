@@ -60,6 +60,9 @@ const BookingPage = () => {
     notes: ''
   });
 
+  // Payment method
+  const [paymentMethod, setPaymentMethod] = useState('on_site'); // on_site or link
+
   // Pricing
   const [pricing, setPricing] = useState(null);
 
@@ -176,12 +179,32 @@ const BookingPage = () => {
         selected_options: selectedOptions,
         insurance_id: selectedInsurance,
         total_price: parseFloat(calculateTotal()),
-        agent_id: user?.id
+        agent_id: user?.id,
+        payment_method: paymentMethod
       };
 
       const response = await axios.post(`${API}/reservations`, reservationData);
 
-      toast.success(`Réservation créée avec succès ! Numéro: ${response.data.reservation_number}`);
+      // Si paiement par lien, envoyer le lien
+      if (paymentMethod === 'link') {
+        try {
+          await axios.post(
+            `${API}/reservations/${response.data.id}/send-payment-link`,
+            {},
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`
+              }
+            }
+          );
+          toast.success(`Réservation créée et lien de paiement envoyé au client !`);
+        } catch (linkError) {
+          console.error('Error sending payment link:', linkError);
+          toast.warning('Réservation créée mais erreur d\'envoi du lien de paiement');
+        }
+      } else {
+        toast.success(`Réservation créée avec succès ! Numéro: ${response.data.reference}`);
+      }
 
       // Redirect to reservations list
       if (user?.role === 'agent') {
@@ -694,6 +717,74 @@ const BookingPage = () => {
                     <span className="text-[#F5A623]">{calculateTotal()} €</span>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Payment Method Selection */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Mode de paiement</CardTitle>
+                <CardDescription>Choisissez comment le client règlera la réservation</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                      paymentMethod === 'on_site'
+                        ? 'border-[#F5A623] bg-orange-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setPaymentMethod('on_site')}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
+                        paymentMethod === 'on_site' ? 'border-[#F5A623]' : 'border-gray-300'
+                      }`}>
+                        {paymentMethod === 'on_site' && (
+                          <div className="h-3 w-3 rounded-full bg-[#F5A623]" />
+                        )}
+                      </div>
+                      <h4 className="font-semibold text-gray-900">Sur place</h4>
+                    </div>
+                    <p className="text-sm text-gray-600 ml-8">
+                      Le client paiera directement à l'agence lors de la prise en charge du véhicule
+                    </p>
+                  </div>
+
+                  <div
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                      paymentMethod === 'link'
+                        ? 'border-[#F5A623] bg-orange-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setPaymentMethod('link')}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
+                        paymentMethod === 'link' ? 'border-[#F5A623]' : 'border-gray-300'
+                      }`}>
+                        {paymentMethod === 'link' && (
+                          <div className="h-3 w-3 rounded-full bg-[#F5A623]" />
+                        )}
+                      </div>
+                      <h4 className="font-semibold text-gray-900">Lien de paiement</h4>
+                    </div>
+                    <p className="text-sm text-gray-600 ml-8">
+                      Un lien de paiement sera envoyé par email au client
+                    </p>
+                  </div>
+                </div>
+
+                {paymentMethod === 'link' && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+                    <svg className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-sm text-blue-800">
+                      <strong>Information :</strong> Un email sera automatiquement envoyé à {customerInfo.email || 'l\'adresse email du client'} avec un lien sécurisé pour effectuer le paiement en ligne.
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

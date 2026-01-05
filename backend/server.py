@@ -240,6 +240,8 @@ class Reservation(BaseModel):
     commission_amount: float = 0.0
     status: ReservationStatus = ReservationStatus.PENDING
     payment_status: str = "pending"  # pending, prepaid, paid, refunded
+    payment_method: str = "on_site"  # on_site, link, online
+    payment_link_sent_at: Optional[str] = None
     deposit_status: str = "pending"  # pending, secured, released
     deposit_amount: float = 0.0
     swikly_id: Optional[str] = None
@@ -856,8 +858,63 @@ async def duplicate_reservation(reservation_id: str, user: dict = Depends(get_cu
     new_reservation["updated_at"] = datetime.now(timezone.utc).isoformat()
     
     await db.reservations.insert_one(new_reservation)
-    
+
     return {"id": new_reservation["id"], "reference": new_reservation["reference"]}
+
+@api_router.post("/reservations/{reservation_id}/send-payment-link")
+async def send_payment_link(
+    reservation_id: str,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Envoie un lien de paiement au client par email
+    """
+    # Check permissions (admin or agent who created the reservation)
+    if user["role"] not in ["admin", "agent"]:
+        raise HTTPException(status_code=403, detail="Only admins and agents can send payment links")
+
+    reservation = await db.reservations.find_one({"id": reservation_id}, {"_id": 0})
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    # Vérifier que c'est l'agent qui a créé la réservation
+    if user["role"] == "agent" and reservation.get("agent_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Générer le lien de paiement (URL vers une page de paiement)
+    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+    payment_url = f"{frontend_url}/payment/{reservation_id}"
+
+    # Récupérer les infos du client
+    customer = await db.users.find_one({"id": reservation["user_id"]}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    # Envoyer l'email avec le lien de paiement
+    await send_payment_link_email(
+        email=customer["email"],
+        reservation_reference=reservation["reference"],
+        amount=reservation["total_price"],
+        payment_url=payment_url
+    )
+
+    # Mettre à jour la réservation
+    await db.reservations.update_one(
+        {"id": reservation_id},
+        {
+            "$set": {
+                "payment_method": "link",
+                "payment_link_sent_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+
+    return {
+        "success": True,
+        "message": "Lien de paiement envoyé",
+        "payment_url": payment_url
+    }
 
 # ========== CHALLENGES ROUTES ==========
 @api_router.get("/challenges")

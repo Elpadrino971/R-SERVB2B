@@ -47,6 +47,9 @@ import InfluencerDashboard from './pages/InfluencerDashboard';
 import InfluencerCodesPage from './pages/InfluencerCodesPage';
 import InfluencerProfilePage from './pages/InfluencerProfilePage';
 
+// Components
+import WelcomeAuthModal from './components/WelcomeAuthModal';
+
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading, isAuthenticated } = useAuth();
@@ -174,6 +177,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <WelcomeAuthModal />
         <AppRoutes />
         <Toaster position="top-right" richColors />
       </BrowserRouter>
