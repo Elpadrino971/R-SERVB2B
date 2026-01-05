@@ -33,6 +33,7 @@ import {
   ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportToCSV, exportConfigs } from '../utils/exportToCSV';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -110,16 +111,15 @@ const AdminUsersPage = () => {
     }
   };
 
-  const exportCSV = async () => {
+  const exportCSV = () => {
     try {
-      const response = await axios.get(`${API}/admin/users/export`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `users_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      if (users.length === 0) {
+        toast.error('Aucun utilisateur à exporter');
+        return;
+      }
+
+      const filename = `utilisateurs_${new Date().toISOString().split('T')[0]}.csv`;
+      exportToCSV(users, exportConfigs.users.columns, filename);
       toast.success(i18n.language === 'fr' ? 'Export réussi' : 'Export successful');
     } catch (error) {
       console.error('Error exporting users:', error);

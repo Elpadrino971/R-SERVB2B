@@ -642,6 +642,57 @@ async def get_agency(agency_id: str):
         raise HTTPException(status_code=404, detail="Agency not found")
     return agency
 
+@api_router.get("/agencies/{agency_id}/hours")
+async def get_agency_hours(agency_id: str, user: dict = Depends(get_current_user)):
+    """Get opening hours and holidays for an agency"""
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    agency = await db.agencies.find_one({"id": agency_id}, {"_id": 0})
+    if not agency:
+        raise HTTPException(status_code=404, detail="Agency not found")
+
+    # Return hours and holidays, or defaults if not set
+    return {
+        "hours": agency.get("hours", {}),
+        "holidays": agency.get("holidays", [])
+    }
+
+@api_router.put("/agencies/{agency_id}/hours")
+async def update_agency_hours(
+    agency_id: str,
+    hours: dict = Body(...),
+    holidays: list = Body(...),
+    user: dict = Depends(get_current_user)
+):
+    """Update opening hours and holidays for an agency"""
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    result = await db.agencies.update_one(
+        {"id": agency_id},
+        {"$set": {
+            "hours": hours,
+            "holidays": holidays,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Agency not found")
+
+    await db.audit_logs.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "action": "agency_hours_updated",
+        "resource_type": "agency",
+        "resource_id": agency_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "details": {"hours_count": len(hours), "holidays_count": len(holidays)}
+    })
+
+    return {"success": True, "message": "Hours updated successfully"}
+
 # ========== PRICING ROUTES ==========
 @api_router.get("/pricing")
 async def get_pricing(
@@ -1657,6 +1708,218 @@ async def stripe_webhook(request: Request):
     except Exception as e:
         logger.error(f"Webhook error: {e}")
         return {"received": True, "error": str(e)}
+
+# ========== SWIKLY CAUTION ROUTES ==========
+@api_router.post("/swikly/create-deposit")
+async def create_swikly_deposit(
+    reservation_id: str = Body(...),
+    amount: float = Body(...),
+    customer_email: str = Body(...),
+    customer_name: str = Body(...),
+    user: dict = Depends(get_current_user)
+):
+    """Create a Swikly deposit request for a reservation"""
+    if user["role"] not in ["admin", "agent"]:
+        raise HTTPException(status_code=403, detail="Only admin and agents can create deposits")
+
+    # Get reservation
+    reservation = await db.reservations.find_one({"id": reservation_id}, {"_id": 0})
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    swikly_api_key = os.environ.get('SWIKLY_API_KEY')
+    if not swikly_api_key:
+        raise HTTPException(status_code=500, detail="Swikly not configured")
+
+    try:
+        # In a real implementation, we would call the Swikly API here
+        # For now, we'll simulate the API call
+        swikly_id = f"SWK-{uuid.uuid4().hex[:12].upper()}"
+
+        # Update reservation with Swikly deposit info
+        await db.reservations.update_one(
+            {"id": reservation_id},
+            {
+                "$set": {
+                    "deposit_amount": amount,
+                    "deposit_status": "pending",
+                    "swikly_id": swikly_id,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+
+        # Log action
+        await db.audit_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "action": "swikly_deposit_created",
+            "resource_type": "reservation",
+            "resource_id": reservation_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "details": {
+                "amount": amount,
+                "swikly_id": swikly_id,
+                "customer_email": customer_email
+            }
+        })
+
+        # Send email to customer
+        if resend.api_key:
+            frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+            # In production, this would be the actual Swikly link
+            swikly_link = f"{frontend_url}/swikly/{swikly_id}"
+
+            html_content = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #3D3A6B;">Auto Discount Location - Caution Swikly</h2>
+                <p>Bonjour {customer_name},</p>
+                <p>Pour finaliser votre réservation <strong>{reservation.get('reference', '')}</strong>, nous vous demandons de sécuriser une caution de <strong>{amount:.2f} €</strong> via Swikly.</p>
+                <p>Swikly est un service sécurisé qui bloque temporairement le montant de la caution sur votre carte bancaire, sans débit.</p>
+                <p style="margin: 30px 0;">
+                    <a href="{swikly_link}" style="background-color: #3D3A6B; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">Sécuriser ma caution</a>
+                </p>
+                <p style="font-size: 12px; color: #666;">
+                    Note: La caution sera libérée automatiquement après restitution du véhicule, sauf en cas de dommages ou de frais supplémentaires.
+                </p>
+                <p>Cordialement,<br>L'équipe Auto Discount Location</p>
+            </div>
+            """
+
+            try:
+                email_params = {
+                    "from": SENDER_EMAIL,
+                    "to": [customer_email],
+                    "subject": f"Caution Swikly - Réservation {reservation.get('reference', '')}",
+                    "html": html_content
+                }
+                await asyncio.to_thread(resend.Emails.send, email_params)
+            except Exception as e:
+                logger.error(f"Failed to send Swikly email: {e}")
+
+        return {
+            "success": True,
+            "swikly_id": swikly_id,
+            "message": "Swikly deposit request created and email sent"
+        }
+
+    except Exception as e:
+        logger.error(f"Swikly deposit creation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create deposit: {str(e)}")
+
+@api_router.post("/swikly/release-deposit")
+async def release_swikly_deposit(
+    reservation_id: str = Body(...),
+    user: dict = Depends(get_current_user)
+):
+    """Release a Swikly deposit"""
+    if user["role"] not in ["admin", "agent"]:
+        raise HTTPException(status_code=403, detail="Only admin and agents can release deposits")
+
+    # Get reservation
+    reservation = await db.reservations.find_one({"id": reservation_id}, {"_id": 0})
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    if not reservation.get("swikly_id"):
+        raise HTTPException(status_code=400, detail="No Swikly deposit found for this reservation")
+
+    swikly_api_key = os.environ.get('SWIKLY_API_KEY')
+    if not swikly_api_key:
+        raise HTTPException(status_code=500, detail="Swikly not configured")
+
+    try:
+        # In a real implementation, we would call the Swikly API here to release the deposit
+        # For now, we'll simulate the release
+
+        # Update reservation
+        await db.reservations.update_one(
+            {"id": reservation_id},
+            {
+                "$set": {
+                    "deposit_status": "released",
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+
+        # Log action
+        await db.audit_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "action": "swikly_deposit_released",
+            "resource_type": "reservation",
+            "resource_id": reservation_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "details": {
+                "swikly_id": reservation.get("swikly_id"),
+                "amount": reservation.get("deposit_amount", 0)
+            }
+        })
+
+        # Send confirmation email to customer
+        if resend.api_key and reservation.get("driver_info", {}).get("email"):
+            customer_email = reservation["driver_info"]["email"]
+            customer_name = f"{reservation['driver_info'].get('first_name', '')} {reservation['driver_info'].get('last_name', '')}"
+
+            html_content = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #10B981;">Auto Discount Location - Caution libérée</h2>
+                <p>Bonjour {customer_name},</p>
+                <p>Nous avons le plaisir de vous informer que la caution de <strong>{reservation.get('deposit_amount', 0):.2f} €</strong> pour votre réservation <strong>{reservation.get('reference', '')}</strong> a été libérée.</p>
+                <p>Le montant sera débloqué sur votre carte bancaire sous 3 à 5 jours ouvrés selon votre banque.</p>
+                <p>Merci d'avoir choisi Auto Discount Location !</p>
+                <p>Cordialement,<br>L'équipe Auto Discount Location</p>
+            </div>
+            """
+
+            try:
+                email_params = {
+                    "from": SENDER_EMAIL,
+                    "to": [customer_email],
+                    "subject": f"Caution libérée - Réservation {reservation.get('reference', '')}",
+                    "html": html_content
+                }
+                await asyncio.to_thread(resend.Emails.send, email_params)
+            except Exception as e:
+                logger.error(f"Failed to send release email: {e}")
+
+        return {
+            "success": True,
+            "message": "Deposit released successfully"
+        }
+
+    except Exception as e:
+        logger.error(f"Swikly deposit release error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to release deposit: {str(e)}")
+
+@api_router.post("/swikly/webhook")
+async def swikly_webhook(request: Request):
+    """Handle Swikly webhook callbacks"""
+    # In production, this would handle callbacks from Swikly when deposits are secured or released
+    body = await request.json()
+
+    # Example webhook handling
+    swikly_id = body.get("transaction_id")
+    status = body.get("status")  # 'secured', 'released', 'expired', etc.
+
+    if swikly_id:
+        # Update reservation based on status
+        update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+
+        if status == "secured":
+            update_data["deposit_status"] = "secured"
+        elif status == "released":
+            update_data["deposit_status"] = "released"
+        elif status in ["expired", "cancelled"]:
+            update_data["deposit_status"] = "pending"
+
+        await db.reservations.update_one(
+            {"swikly_id": swikly_id},
+            {"$set": update_data}
+        )
+
+    return {"received": True}
 
 # ========== EMAIL ROUTES ==========
 @api_router.post("/email/send-payment-link")

@@ -36,9 +36,11 @@ import {
 } from '../components/ui/dropdown-menu';
 import {
   Calendar, Search, Download, Eye, MoreVertical,
-  ChevronLeft, ChevronRight, Clock, CheckCircle, XCircle, AlertCircle
+  ChevronLeft, ChevronRight, Clock, CheckCircle, XCircle, AlertCircle, ShieldCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportToCSV, exportConfigs } from '../utils/exportToCSV';
+import SwiklyDepositModal from '../components/SwiklyDepositModal';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -55,6 +57,8 @@ const AdminReservationsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState(null);
+  const [swiklyModalOpen, setSwiklyModalOpen] = useState(false);
+  const [swiklyReservation, setSwiklyReservation] = useState(null);
 
   const limit = 20;
 
@@ -100,24 +104,15 @@ const AdminReservationsPage = () => {
     }
   };
 
-  const exportCSV = async () => {
+  const exportCSV = () => {
     try {
-      const response = await axios.get(`${API}/admin/export/reservations`, {
-        responseType: 'blob',
-        params: {
-          ...(statusFilter !== 'all' && { status: statusFilter }),
-          ...(agencyFilter !== 'all' && { agency_id: agencyFilter }),
-          ...(startDate && { start_date: startDate }),
-          ...(endDate && { end_date: endDate })
-        }
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `reservations_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      if (filteredReservations.length === 0) {
+        toast.error('Aucune réservation à exporter');
+        return;
+      }
+
+      const filename = `reservations_${new Date().toISOString().split('T')[0]}.csv`;
+      exportToCSV(filteredReservations, exportConfigs.reservations.columns, filename);
       toast.success(i18n.language === 'fr' ? 'Export réussi' : 'Export successful');
     } catch (error) {
       console.error('Error exporting:', error);
@@ -128,6 +123,15 @@ const AdminReservationsPage = () => {
   const openDetailDialog = (reservation) => {
     setSelectedReservation(reservation);
     setDetailDialogOpen(true);
+  };
+
+  const openSwiklyModal = (reservation) => {
+    setSwiklyReservation(reservation);
+    setSwiklyModalOpen(true);
+  };
+
+  const handleSwiklySuccess = () => {
+    fetchReservations(); // Refresh the list
   };
 
   const getStatusBadge = (status) => {
@@ -300,6 +304,10 @@ const AdminReservationsPage = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openSwiklyModal(res)}>
+                              <ShieldCheck className="mr-2 h-4 w-4" />
+                              {i18n.language === 'fr' ? 'Gérer caution Swikly' : 'Manage Swikly deposit'}
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => updateReservationStatus(res.id, 'pending')}>
                               {i18n.language === 'fr' ? 'Marquer en attente' : 'Mark as pending'}
                             </DropdownMenuItem>
@@ -464,6 +472,14 @@ const AdminReservationsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Swikly Deposit Modal */}
+      <SwiklyDepositModal
+        isOpen={swiklyModalOpen}
+        onClose={() => setSwiklyModalOpen(false)}
+        reservation={swiklyReservation}
+        onSuccess={handleSwiklySuccess}
+      />
     </div>
   );
 };

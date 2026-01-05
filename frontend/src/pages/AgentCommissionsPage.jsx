@@ -21,6 +21,7 @@ import {
   DollarSign, TrendingUp, Calendar, Download, Filter, CheckCircle, Clock
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { exportToCSV as exportCSVUtil, exportConfigs } from '../utils/exportToCSV';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -86,32 +87,19 @@ const AgentCommissionsPage = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Réservation', 'Date clôture', 'Montant HT', 'Commission %', 'Montant commission', 'Statut paiement'];
-    const csvData = commissions.map(comm => [
-      comm.reservation_reference || '-',
-      comm.completion_date || '-',
-      comm.amount_ht?.toFixed(2) || '0',
-      comm.commission_rate || '0',
-      comm.commission_amount?.toFixed(2) || '0',
-      comm.payment_status || 'pending'
-    ]);
+    try {
+      if (commissions.length === 0) {
+        toast.error('Aucune commission à exporter');
+        return;
+      }
 
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => row.join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `commissions_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-
-    toast.success(i18n.language === 'fr'
-      ? 'Export CSV réussi'
-      : 'CSV export successful'
-    );
+      const filename = `commissions_${new Date().toISOString().split('T')[0]}.csv`;
+      exportCSVUtil(commissions, exportConfigs.commissions.columns, filename);
+      toast.success(i18n.language === 'fr' ? 'Export CSV réussi' : 'CSV export successful');
+    } catch (error) {
+      console.error('Error exporting:', error);
+      toast.error(i18n.language === 'fr' ? 'Erreur lors de l\'export' : 'Error exporting');
+    }
   };
 
   const getPaymentStatusBadge = (status) => {

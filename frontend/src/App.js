@@ -35,6 +35,7 @@ import AdminPricingPage from './pages/AdminPricingPage';
 import AdminChallengesPage from './pages/AdminChallengesPage';
 import AdminBlogPage from './pages/AdminBlogPage';
 import AdminEventsPage from './pages/AdminEventsPage';
+import AdminSettingsHoursPage from './pages/AdminSettingsHoursPage';
 
 // Company Pages
 import CompanyDashboard from './pages/CompanyDashboard';
@@ -177,6 +178,7 @@ function AppRoutes() {
         <Route path="challenges" element={<AdminChallengesPage />} />
         <Route path="blog" element={<AdminBlogPage />} />
         <Route path="events" element={<AdminEventsPage />} />
+        <Route path="settings/hours" element={<AdminSettingsHoursPage />} />
         <Route path="stats" element={<PlaceholderPage title="Statistiques Avancées" />} />
       </Route>
 

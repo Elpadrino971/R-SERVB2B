@@ -26,6 +26,7 @@ import {
   Eye, Download, XCircle, Link2, FileText, UserCheck,
   Search, Filter, Calendar
 } from 'lucide-react';
+import { exportToCSV, exportConfigs } from '../utils/exportToCSV';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -100,26 +101,19 @@ const CompanyReservationsPage = () => {
   };
 
   const handleExportCSV = () => {
-    const csv = [
-      ['Référence', 'Conducteur', 'Véhicule', 'Dates', 'Statut', 'Montant', 'PO'].join(','),
-      ...filteredReservations.map(r => [
-        r.reference,
-        r.driver_name || '-',
-        r.vehicle_id || '-',
-        `${r.pickup_date} - ${r.return_date}`,
-        r.status,
-        r.total_price?.toFixed(2),
-        r.po_number || '-'
-      ].join(','))
-    ].join('\n');
+    try {
+      if (filteredReservations.length === 0) {
+        toast.error('Aucune réservation à exporter');
+        return;
+      }
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reservations-${new Date().toISOString()}.csv`;
-    a.click();
-    toast.success(i18n.language === 'fr' ? 'Export CSV réussi' : 'CSV exported');
+      const filename = `reservations-entreprise_${new Date().toISOString().split('T')[0]}.csv`;
+      exportToCSV(filteredReservations, exportConfigs.reservations.columns, filename);
+      toast.success(i18n.language === 'fr' ? 'Export CSV réussi' : 'CSV exported');
+    } catch (error) {
+      console.error('Error exporting:', error);
+      toast.error(i18n.language === 'fr' ? 'Erreur lors de l\'export' : 'Error exporting');
+    }
   };
 
   const getStatusBadge = (status) => {
