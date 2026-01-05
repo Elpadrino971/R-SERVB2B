@@ -1,11 +1,14 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Body, Query, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Body, Query, Request, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
+import shutil
+import aiofiles
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
 import uuid
@@ -144,15 +147,23 @@ class Vehicle(BaseModel):
     category_id: str
     brand: str
     model: str
+    name: str  # Nom commercial (ex: "Renault Clio")
     year: int
     passengers: int
     luggage: int
     doors: int
     transmission: str  # manual, automatic
-    fuel_type: str  # petrol, diesel, electric, hybrid
+    fuel_type: str  # petrol, diesel, electric, hybrid, gpl
+    motorization: Optional[str] = None  # Alias de fuel_type pour compatibilité frontend
     image_url: Optional[str] = None
-    tags: List[str] = []  # electric, hybrid, favorite, new, recommended
+    images: List[Dict[str, Any]] = []  # [{url, name, size, provider}]
+    description: Optional[str] = None
+    features: List[str] = []  # Équipements (GPS, Climatisation, etc.)
+    technical_specs: Dict[str, Any] = {}  # {engine, power, fuel_consumption, co2_emissions}
+    tags: List[str] = []  # electric, hybrid, favorite, new, recommended, premium, familial
+    stock_by_agency: List[Dict[str, Any]] = []  # [{agency_id, agency_name, quantity, status}]
     is_active: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class Agency(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -1410,6 +1421,192 @@ async def send_payment_link_email(
         logger.error(f"Email error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
 
+# ========== FILE UPLOAD ==========
+# Configuration
+UPLOAD_DIR = ROOT_DIR / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+
+@api_router.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    folder: str = Body("vehicles"),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Upload a file to the backend storage
+    Returns: {url, name, size, provider}
+    """
+    # Validation
+    if not file:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type not allowed. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+        )
+
+    # Read file content to check size
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large (max 5 MB)")
+
+    # Generate unique filename
+    file_id = str(uuid.uuid4())
+    filename = f"{file_id}{file_ext}"
+
+    # Create folder structure
+    folder_path = UPLOAD_DIR / folder
+    folder_path.mkdir(parents=True, exist_ok=True)
+
+    # Save file
+    file_path = folder_path / filename
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(contents)
+
+    # Return URL (relative to backend)
+    file_url = f"/uploads/{folder}/{filename}"
+
+    return {
+        "url": file_url,
+        "name": file.filename,
+        "size": len(contents),
+        "provider": "backend"
+    }
+
+@api_router.post("/upload/signed-url")
+async def get_cloudflare_signed_url(
+    filename: str = Body(...),
+    folder: str = Body("vehicles"),
+    contentType: str = Body("image/jpeg"),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Get a signed URL for direct upload to CloudFlare R2
+    Note: Requires CloudFlare R2 credentials in .env
+    """
+    # TODO: Implement CloudFlare R2 integration
+    # For now, return mock response
+    raise HTTPException(
+        status_code=501,
+        detail="CloudFlare R2 integration not yet implemented. Use 'backend' provider instead."
+    )
+
+    # Example implementation:
+    # import boto3
+    # s3_client = boto3.client(
+    #     's3',
+    #     endpoint_url=os.getenv('CLOUDFLARE_R2_ENDPOINT'),
+    #     aws_access_key_id=os.getenv('CLOUDFLARE_R2_ACCESS_KEY_ID'),
+    #     aws_secret_access_key=os.getenv('CLOUDFLARE_R2_SECRET_ACCESS_KEY')
+    # )
+    #
+    # file_key = f"{folder}/{uuid.uuid4()}{Path(filename).suffix}"
+    # signed_url = s3_client.generate_presigned_url(
+    #     'put_object',
+    #     Params={'Bucket': os.getenv('CLOUDFLARE_R2_BUCKET'), 'Key': file_key, 'ContentType': contentType},
+    #     ExpiresIn=3600
+    # )
+    # public_url = f"{os.getenv('CLOUDFLARE_R2_PUBLIC_URL')}/{file_key}"
+    #
+    # return {"signedUrl": signed_url, "publicUrl": public_url}
+
+@api_router.post("/upload/s3-signed-url")
+async def get_aws_s3_signed_url(
+    filename: str = Body(...),
+    folder: str = Body("vehicles"),
+    contentType: str = Body("image/jpeg"),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Get a signed URL for direct upload to AWS S3
+    Note: Requires AWS S3 credentials in .env
+    """
+    # TODO: Implement AWS S3 integration
+    raise HTTPException(
+        status_code=501,
+        detail="AWS S3 integration not yet implemented. Use 'backend' provider instead."
+    )
+
+    # Example implementation:
+    # import boto3
+    # s3_client = boto3.client(
+    #     's3',
+    #     region_name=os.getenv('AWS_REGION'),
+    #     aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+    #     aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+    # )
+    #
+    # file_key = f"{folder}/{uuid.uuid4()}{Path(filename).suffix}"
+    # signed_url = s3_client.generate_presigned_url(
+    #     'put_object',
+    #     Params={'Bucket': os.getenv('AWS_S3_BUCKET'), 'Key': file_key, 'ContentType': contentType},
+    #     ExpiresIn=3600
+    # )
+    # public_url = f"https://{os.getenv('AWS_S3_BUCKET')}.s3.amazonaws.com/{file_key}"
+    #
+    # return {"signedUrl": signed_url, "publicUrl": public_url}
+
+@api_router.post("/upload/supabase")
+async def get_supabase_upload_url(
+    filename: str = Body(...),
+    folder: str = Body("vehicles"),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Get upload URL for Supabase Storage
+    Note: Requires Supabase credentials in .env
+    """
+    # TODO: Implement Supabase Storage integration
+    raise HTTPException(
+        status_code=501,
+        detail="Supabase integration not yet implemented. Use 'backend' provider instead."
+    )
+
+    # Example implementation:
+    # from supabase import create_client
+    # supabase = create_client(
+    #     os.getenv('SUPABASE_URL'),
+    #     os.getenv('SUPABASE_KEY')
+    # )
+    #
+    # file_path = f"{folder}/{uuid.uuid4()}{Path(filename).suffix}"
+    # upload_url = supabase.storage.from_('images').create_signed_upload_url(file_path)
+    # public_url = supabase.storage.from_('images').get_public_url(file_path)
+    #
+    # return {"uploadUrl": upload_url, "publicUrl": public_url}
+
+@api_router.delete("/upload")
+async def delete_file(
+    url: str = Body(...),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Delete an uploaded file
+    """
+    try:
+        # Extract file path from URL
+        # Example URL: /uploads/vehicles/abc123.jpg
+        if url.startswith("/uploads/"):
+            file_path = UPLOAD_DIR / url.replace("/uploads/", "")
+            if file_path.exists():
+                file_path.unlink()
+                return {"success": True, "message": "File deleted"}
+            else:
+                raise HTTPException(status_code=404, detail="File not found")
+        else:
+            # External URL (CloudFlare, S3, etc.) - would need provider-specific deletion
+            raise HTTPException(
+                status_code=400,
+                detail="Can only delete files stored on backend"
+            )
+    except Exception as e:
+        logger.error(f"Error deleting file: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
+
 # ========== SEED DATA ==========
 @api_router.post("/admin/seed")
 async def seed_database(admin: dict = Depends(require_admin)):
@@ -1548,6 +1745,9 @@ async def health():
 
 # Include router
 app.include_router(api_router)
+
+# Mount static files for uploads
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 # CORS
 app.add_middleware(

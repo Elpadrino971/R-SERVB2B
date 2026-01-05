@@ -16,6 +16,7 @@ import {
   Car, Plus, Edit, Trash2, Users, Briefcase, Zap, Heart, Sparkles, Tag,
   Upload, Image as ImageIcon, MapPin, Package, AlertCircle, CheckCircle, XCircle
 } from 'lucide-react';
+import { uploadMultipleImages, deleteImage } from '../utils/imageUpload';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -175,36 +176,46 @@ const AdminVehiclesAdvancedPage = () => {
 
     setUploadingImage(true);
     try {
-      // Simulation upload - À remplacer par vraie intégration S3/CloudFlare
-      const newImages = files.map(file => ({
-        url: URL.createObjectURL(file),
-        name: file.name,
-        size: file.size
-      }));
+      // Upload réel vers le backend/CloudFlare/S3/Supabase
+      const uploadedImages = await uploadMultipleImages(files, 'vehicles');
 
       setVehicleForm({
         ...vehicleForm,
-        images: [...vehicleForm.images, ...newImages],
-        image_url: vehicleForm.image_url || newImages[0].url
+        images: [...vehicleForm.images, ...uploadedImages],
+        image_url: vehicleForm.image_url || uploadedImages[0].url
       });
 
-      toast.success(`${files.length} photo(s) ajoutée(s)`);
+      toast.success(`${files.length} photo(s) uploadée(s) avec succès`);
     } catch (error) {
       console.error('Error uploading images:', error);
-      toast.error('Erreur lors de l\'upload');
+      toast.error(error.message || 'Erreur lors de l\'upload');
     } finally {
       setUploadingImage(false);
     }
   };
 
-  const removeImage = (index) => {
-    const newImages = [...vehicleForm.images];
-    newImages.splice(index, 1);
-    setVehicleForm({
-      ...vehicleForm,
-      images: newImages,
-      image_url: newImages[0]?.url || ''
-    });
+  const removeImage = async (index) => {
+    const imageToDelete = vehicleForm.images[index];
+
+    try {
+      // Supprimer du serveur
+      if (imageToDelete.url && !imageToDelete.url.startsWith('blob:')) {
+        await deleteImage(imageToDelete.url);
+      }
+
+      const newImages = [...vehicleForm.images];
+      newImages.splice(index, 1);
+      setVehicleForm({
+        ...vehicleForm,
+        images: newImages,
+        image_url: newImages[0]?.url || ''
+      });
+
+      toast.success('Photo supprimée');
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      toast.error('Erreur lors de la suppression');
+    }
   };
 
   const toggleTag = (tag) => {

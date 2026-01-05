@@ -29,7 +29,7 @@ import AgentProfilePage from './pages/AgentProfilePage';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminReservationsPage from './pages/AdminReservationsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
-import AdminVehiclesPage from './pages/AdminVehiclesPage';
+import AdminVehiclesPage from './pages/AdminVehiclesAdvancedPage'; // Version avancée avec stock et photos
 import AdminAgenciesPage from './pages/AdminAgenciesPage';
 import AdminPricingPage from './pages/AdminPricingPage';
 import AdminChallengesPage from './pages/AdminChallengesPage';
