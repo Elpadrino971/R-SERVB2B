@@ -1082,6 +1082,132 @@ async def get_chat_history(session_id: str, user: dict = Depends(get_current_use
     ).sort("created_at", 1).to_list(100)
     return messages
 
+# ========== INTRANET ROUTES ==========
+@api_router.get("/intranet/announcements")
+async def get_intranet_announcements(user: dict = Depends(get_current_user)):
+    """
+    Récupère les actualités de l'intranet pour les partenaires
+    """
+    # Récupérer les annonces selon le rôle de l'utilisateur
+    query = {
+        "$or": [
+            {"target_roles": user["role"]},
+            {"target_roles": "all"}
+        ],
+        "is_active": True
+    }
+
+    announcements = await db.intranet_announcements.find(
+        query, {"_id": 0}
+    ).sort("created_at", -1).limit(20).to_list(20)
+
+    return {"announcements": announcements}
+
+@api_router.get("/intranet/documents")
+async def get_intranet_documents(
+    category: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Récupère les documents de l'intranet (guides, contrats, etc.)
+    """
+    query = {
+        "$or": [
+            {"target_roles": user["role"]},
+            {"target_roles": "all"}
+        ],
+        "is_active": True
+    }
+
+    if category:
+        query["category"] = category
+
+    documents = await db.intranet_documents.find(
+        query, {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+
+    return {"documents": documents}
+
+@api_router.get("/intranet/documents/{document_id}/download")
+async def download_intranet_document(
+    document_id: str,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Télécharge un document de l'intranet
+    """
+    document = await db.intranet_documents.find_one({"id": document_id}, {"_id": 0})
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Vérifier les permissions
+    if user["role"] not in document.get("target_roles", []) and "all" not in document.get("target_roles", []):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # TODO: Implémenter le téléchargement réel du fichier
+    # Pour l'instant, retourner l'URL du document
+    return {
+        "url": document.get("file_url", ""),
+        "filename": document.get("filename", "document.pdf")
+    }
+
+@api_router.get("/intranet/trainings")
+async def get_intranet_trainings(user: dict = Depends(get_current_user)):
+    """
+    Récupère les formations disponibles pour le partenaire
+    """
+    query = {
+        "$or": [
+            {"target_roles": user["role"]},
+            {"target_roles": "all"}
+        ],
+        "is_active": True
+    }
+
+    trainings = await db.intranet_trainings.find(
+        query, {"_id": 0}
+    ).sort("order", 1).to_list(50)
+
+    # Récupérer la progression de l'utilisateur
+    user_progress = await db.training_progress.find(
+        {"user_id": user["id"]}, {"_id": 0}
+    ).to_list(100)
+
+    # Associer la progression aux formations
+    progress_dict = {p["training_id"]: p.get("progress", 0) for p in user_progress}
+    for training in trainings:
+        training["progress"] = progress_dict.get(training["id"], 0)
+
+    return {"trainings": trainings}
+
+@api_router.post("/intranet/trainings/{training_id}/progress")
+async def update_training_progress(
+    training_id: str,
+    progress: int = Body(...),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Met à jour la progression d'une formation
+    """
+    await db.training_progress.update_one(
+        {"user_id": user["id"], "training_id": training_id},
+        {
+            "$set": {
+                "progress": progress,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            },
+            "$setOnInsert": {
+                "id": str(uuid.uuid4()),
+                "user_id": user["id"],
+                "training_id": training_id,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+        },
+        upsert=True
+    )
+
+    return {"success": True, "progress": progress}
+
 # ========== ADMIN ROUTES ==========
 @api_router.get("/admin/users")
 async def admin_get_users(

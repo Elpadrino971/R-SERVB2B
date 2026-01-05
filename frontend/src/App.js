@@ -47,8 +47,12 @@ import InfluencerDashboard from './pages/InfluencerDashboard';
 import InfluencerCodesPage from './pages/InfluencerCodesPage';
 import InfluencerProfilePage from './pages/InfluencerProfilePage';
 
+// Intranet
+import IntranetPage from './pages/IntranetPage';
+
 // Components
 import WelcomeAuthModal from './components/WelcomeAuthModal';
+import ChatWidget from './components/ChatWidget';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -95,6 +99,16 @@ function AppRoutes() {
       <Route path="/partners" element={<PartnersPage />} />
       <Route path="/events" element={<EventsPage />} />
       <Route path="/contact" element={<PlaceholderPage title="Contact" />} />
+
+      {/* Intranet - Accessible to all authenticated users */}
+      <Route
+        path="/intranet"
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'agent', 'company', 'influencer']}>
+            <IntranetPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Agent Dashboard */}
       <Route
@@ -178,6 +192,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <WelcomeAuthModal />
+        <ChatWidget />
         <AppRoutes />
         <Toaster position="top-right" richColors />
       </BrowserRouter>
