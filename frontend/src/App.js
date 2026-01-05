@@ -50,6 +50,9 @@ import InfluencerProfilePage from './pages/InfluencerProfilePage';
 // Intranet
 import IntranetPage from './pages/IntranetPage';
 
+// Payment
+import PaymentPage from './pages/PaymentPage';
+
 // Components
 import WelcomeAuthModal from './components/WelcomeAuthModal';
 import ChatWidget from './components/ChatWidget';
@@ -178,6 +181,7 @@ function AppRoutes() {
       </Route>
 
       {/* Payment Routes */}
+      <Route path="/payment/:reservationId" element={<PaymentPage />} />
       <Route path="/payment/success" element={<PlaceholderPage title="Paiement réussi" />} />
       <Route path="/payment/cancel" element={<PlaceholderPage title="Paiement annulé" />} />
 

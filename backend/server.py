@@ -916,6 +916,95 @@ async def send_payment_link(
         "payment_url": payment_url
     }
 
+@api_router.post("/reservations/{reservation_id}/confirm-payment-method")
+async def confirm_payment_method(
+    reservation_id: str,
+    payment_method: str = Body(...)
+):
+    """
+    Confirme le choix de mode de paiement du client
+    Accessible sans authentification (lien public)
+    """
+    reservation = await db.reservations.find_one({"id": reservation_id}, {"_id": 0})
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    # Mettre à jour le mode de paiement
+    await db.reservations.update_one(
+        {"id": reservation_id},
+        {
+            "$set": {
+                "payment_method": payment_method,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+
+    return {"success": True, "payment_method": payment_method}
+
+@api_router.post("/payments/create-checkout-session")
+async def create_checkout_session(
+    reservation_id: str = Body(...)
+):
+    """
+    Crée une session Stripe pour le paiement en ligne
+    Accessible sans authentification (lien public)
+    """
+    reservation = await db.reservations.find_one({"id": reservation_id}, {"_id": 0})
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    # Vérifier que la réservation n'est pas déjà payée
+    if reservation.get("payment_status") in ["paid", "prepaid"]:
+        raise HTTPException(status_code=400, detail="Reservation already paid")
+
+    try:
+        from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+
+        stripe_key = os.environ.get('STRIPE_SECRET_KEY')
+        if not stripe_key:
+            raise HTTPException(status_code=500, detail="Stripe not configured")
+
+        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+        webhook_url = f"{os.environ.get('BACKEND_URL', 'http://localhost:8000')}/api/webhook/stripe"
+
+        stripe_checkout = StripeCheckout(api_key=stripe_key, webhook_url=webhook_url)
+
+        # Créer la session de paiement
+        checkout_request = CheckoutSessionRequest(
+            amount=int(reservation["total_price"] * 100),  # Convertir en centimes
+            currency="eur",
+            success_url=f"{frontend_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{frontend_url}/payment/{reservation_id}",
+            metadata={
+                "reservation_id": reservation_id,
+                "reservation_reference": reservation["reference"]
+            }
+        )
+
+        session = await stripe_checkout.create_checkout_session(checkout_request)
+
+        # Sauvegarder la session Stripe dans la réservation
+        await db.reservations.update_one(
+            {"id": reservation_id},
+            {
+                "$set": {
+                    "stripe_session_id": session.session_id,
+                    "payment_method": "online",
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+
+        return {
+            "checkout_url": session.checkout_url,
+            "session_id": session.session_id
+        }
+
+    except Exception as e:
+        logger.error(f"Error creating Stripe checkout session: {e}")
+        raise HTTPException(status_code=500, detail=f"Error creating payment session: {str(e)}")
+
 # ========== CHALLENGES ROUTES ==========
 @api_router.get("/challenges")
 async def get_challenges(status: Optional[str] = None):
