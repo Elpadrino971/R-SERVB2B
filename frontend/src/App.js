@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import './i18n';
 
 // Pages
-import HomePage from './pages/HomePage';
+import HomePage from './pages/HomePageNew';
 import { LoginPage, RegisterPage } from './pages/AuthPages';
 import VehiclesPage from './pages/VehiclesPage';
 import AgenciesPage from './pages/AgenciesPage';
