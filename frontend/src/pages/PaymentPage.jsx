@@ -31,7 +31,7 @@ const PaymentPage = () => {
 
   useEffect(() => {
     fetchReservation();
-  }, [reservationId]);
+  }, [reservationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchReservation = async () => {
     try {

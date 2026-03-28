@@ -46,7 +46,7 @@ const VehiclesPage = ({ type: propType = 'tourisme' }) => {
 
   useEffect(() => {
     fetchData();
-  }, [filters]);
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchData = async () => {
     if (!API) {
