@@ -11,10 +11,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
-import { 
+import {
   LayoutDashboard, Calendar, DollarSign, Trophy, User, Settings,
   LogOut, Menu, X, ChevronDown, Globe, Bell, Search, Car, Building,
-  Users, MapPin, Tag, FileText, BarChart3, MessageCircle, Ticket
+  Users, MapPin, Tag, FileText, BarChart3, MessageCircle, Ticket,
+  Layers, Ban, CheckSquare, Percent, Shield, Network, Clock
 } from 'lucide-react';
 
 const DashboardLayout = ({ role }) => {
@@ -83,9 +84,16 @@ const DashboardLayout = ({ role }) => {
         { to: '/admin/vehicles', label: 'Véhicules', icon: Car },
         { to: '/admin/agencies', label: 'Agences', icon: MapPin },
         { to: '/admin/pricing', label: 'Tarifs', icon: Tag },
+        { to: '/admin/allotments', label: 'Allotements', icon: Layers },
+        { to: '/admin/stop-sales', label: 'Stop-Sales', icon: Ban },
+        { to: '/admin/availability', label: 'Disponibilité', icon: CheckSquare },
+        { to: '/admin/promos', label: 'Promos', icon: Percent },
         { to: '/admin/challenges', label: 'Challenges', icon: Trophy },
         { to: '/admin/blog', label: 'Blog', icon: FileText },
         { to: '/admin/events', label: 'Événements', icon: Calendar },
+        { to: '/admin/networks', label: 'Réseaux agents', icon: Network },
+        { to: '/admin/settings/hours', label: 'Horaires', icon: Clock },
+        { to: '/admin/audit-logs', label: 'Journal audit', icon: Shield },
         { to: '/admin/stats', label: 'Statistiques', icon: BarChart3 },
       ];
     }
@@ -106,7 +114,7 @@ const DashboardLayout = ({ role }) => {
     <div className="min-h-screen bg-slate-50" data-testid={`${role}-dashboard`}>
       {/* Sidebar */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#3D3A6B] transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#332859] transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -114,9 +122,9 @@ const DashboardLayout = ({ role }) => {
         <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
           <Link to="/" className="flex items-center">
             <img 
-              src="https://customer-assets.emergentagent.com/job_634ba54c-5254-4232-8d61-233474b6274f/artifacts/hvaqrgsp_te%CC%81le%CC%81chargement.png" 
+              src="/logo-auto-discount.png" 
               alt="Auto Discount Location"
-              className="h-10 w-auto"
+              className="h-16 object-contain"
             />
           </Link>
           <Button 
@@ -147,7 +155,7 @@ const DashboardLayout = ({ role }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1">
+        <nav className="p-4 space-y-1 pb-20 overflow-y-auto flex-1">
           {menuItems.map((item) => (
             <Link
               key={item.to}
@@ -235,7 +243,7 @@ const DashboardLayout = ({ role }) => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2">
-                  <div className="h-8 w-8 rounded-full bg-[#3D3A6B] flex items-center justify-center text-white text-sm font-medium">
+                  <div className="h-8 w-8 rounded-full bg-[#332859] flex items-center justify-center text-white text-sm font-medium">
                     {user?.first_name?.[0]}
                   </div>
                   <ChevronDown className="h-4 w-4" />

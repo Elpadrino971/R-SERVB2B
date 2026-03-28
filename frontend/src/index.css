@@ -66,9 +66,14 @@
     @apply border-border;
   }
   
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -170,13 +175,17 @@
   @apply backdrop-blur-md bg-black/30 border border-white/10;
 }
 
-/* Gradient backgrounds */
+/* Gradient backgrounds - Violet contractuel #332859 */
 .gradient-hero {
-  background: linear-gradient(135deg, #3D3A6B 0%, #252240 100%);
+  background: linear-gradient(135deg, #332859 0%, #252040 100%);
+}
+
+.gradient-hero-dark {
+  background: linear-gradient(135deg, #332859 0%, #1a1528 100%);
 }
 
 .gradient-accent {
-  background: linear-gradient(90deg, #F5A623 0%, #F9B34F 100%);
+  background: linear-gradient(90deg, #F9A826 0%, #F5A623 100%);
 }
 
 /* Card hover effects */
@@ -184,13 +193,13 @@
   @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
 }
 
-/* Button styles */
+/* Button styles - Violet #332859 + Orange accent */
 .btn-primary {
-  @apply bg-[#F5A623] text-black hover:bg-[#F5A623]/90 font-semibold shadow-sm transition-all duration-200;
+  @apply bg-[#F9A826] text-white hover:bg-[#F5A623] font-semibold shadow-sm transition-all duration-200;
 }
 
 .btn-secondary {
-  @apply bg-white text-[#3D3A6B] border border-[#3D3A6B] hover:bg-[#3D3A6B]/5 font-medium transition-all duration-200;
+  @apply bg-white text-[#332859] border-2 border-[#332859] hover:bg-[#332859]/5 font-medium transition-all duration-200;
 }
 
 /* Sidebar styles */
@@ -199,12 +208,12 @@
 }
 
 .sidebar-link-active {
-  @apply bg-[#F5A623] text-black hover:bg-[#F5A623];
+  @apply bg-[#F9A826] text-white hover:bg-[#F9A826] hover:text-white;
 }
 
 /* Form focus styles */
 .input-focus {
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D3A6B] focus-visible:ring-offset-2;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#332859] focus-visible:ring-offset-2;
 }
 
 /* Status badges */

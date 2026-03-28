@@ -6,7 +6,6 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -33,24 +32,19 @@ const AdminVehiclesAdvancedPage = () => {
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
   const [vehicleForm, setVehicleForm] = useState({
-    name: '',
-    category: '',
+    brand: '',
+    model: '',
+    category_id: '',
     passengers: '',
     luggage: '',
-    motorization: 'essence',
+    fuel_type: 'essence',
     transmission: 'automatique',
+    year: 2024,
+    doors: 4,
     tags: [],
     image_url: '',
     images: [],
-    description: '',
-    features: [],
-    technical_specs: {
-      engine: '',
-      power: '',
-      fuel_consumption: '',
-      co2_emissions: ''
-    },
-    stock_by_agency: [] // [{agency_id, quantity, status}]
+    stock_by_agency: []
   });
 
   // Stock Dialog
@@ -63,11 +57,6 @@ const AdminVehiclesAdvancedPage = () => {
   const motorizations = ['essence', 'diesel', 'électrique', 'hybride', 'GPL'];
   const transmissions = ['manuelle', 'automatique'];
   const availableTags = ['électrique', 'hybride', 'coup de cœur', 'nouveau', 'recommandé', 'premium', 'familial'];
-  const defaultFeatures = [
-    'Climatisation', 'GPS', 'Bluetooth', 'Régulateur de vitesse', 'Caméra de recul',
-    'Sièges chauffants', 'Toit ouvrant', 'Jantes alliage', 'Système audio premium',
-    'Capteurs de stationnement', 'Démarrage sans clé', 'Vitres électriques'
-  ];
 
   useEffect(() => {
     fetchData();
@@ -92,52 +81,48 @@ const AdminVehiclesAdvancedPage = () => {
     }
   };
 
+  const defaultStockForAgencies = (agencyList) =>
+    agencyList.map(a => ({
+      agency_id: a.id,
+      agency_name: a.name,
+      quantity: 0,
+      status: 'available'
+    }));
+
   const openVehicleDialog = (vehicle = null) => {
     if (vehicle) {
       setEditingVehicle(vehicle);
       setVehicleForm({
         ...vehicle,
-        stock_by_agency: vehicle.stock_by_agency || agencies.map(a => ({
-          agency_id: a.id,
-          agency_name: a.name,
-          quantity: 0,
-          status: 'available'
-        }))
+        images: vehicle.images || [],
+        stock_by_agency: vehicle.stock_by_agency?.length
+          ? vehicle.stock_by_agency
+          : defaultStockForAgencies(agencies)
       });
     } else {
       setEditingVehicle(null);
       setVehicleForm({
-        name: '',
-        category: '',
+        brand: '',
+        model: '',
+        category_id: '',
         passengers: '',
         luggage: '',
-        motorization: 'essence',
+        fuel_type: 'essence',
         transmission: 'automatique',
+        year: 2024,
+        doors: 4,
         tags: [],
         image_url: '',
         images: [],
-        description: '',
-        features: [],
-        technical_specs: {
-          engine: '',
-          power: '',
-          fuel_consumption: '',
-          co2_emissions: ''
-        },
-        stock_by_agency: agencies.map(a => ({
-          agency_id: a.id,
-          agency_name: a.name,
-          quantity: 0,
-          status: 'available'
-        }))
+        stock_by_agency: defaultStockForAgencies(agencies)
       });
     }
     setVehicleDialogOpen(true);
   };
 
   const saveVehicle = async () => {
-    if (!vehicleForm.name || !vehicleForm.category) {
-      toast.error('Le nom et la catégorie sont requis');
+    if (!vehicleForm.brand || !vehicleForm.model || !vehicleForm.category_id) {
+      toast.error('La marque, le modèle et la catégorie sont requis');
       return;
     }
 
@@ -176,7 +161,6 @@ const AdminVehiclesAdvancedPage = () => {
 
     setUploadingImage(true);
     try {
-      // Upload réel vers le backend/CloudFlare/S3/Supabase
       const uploadedImages = await uploadMultipleImages(files, 'vehicles');
 
       setVehicleForm({
@@ -198,7 +182,6 @@ const AdminVehiclesAdvancedPage = () => {
     const imageToDelete = vehicleForm.images[index];
 
     try {
-      // Supprimer du serveur
       if (imageToDelete.url && !imageToDelete.url.startsWith('blob:')) {
         await deleteImage(imageToDelete.url);
       }
@@ -225,13 +208,6 @@ const AdminVehiclesAdvancedPage = () => {
     setVehicleForm({ ...vehicleForm, tags });
   };
 
-  const toggleFeature = (feature) => {
-    const features = vehicleForm.features.includes(feature)
-      ? vehicleForm.features.filter(f => f !== feature)
-      : [...vehicleForm.features, feature];
-    setVehicleForm({ ...vehicleForm, features });
-  };
-
   const updateStock = (agencyId, field, value) => {
     const newStock = vehicleForm.stock_by_agency.map(s =>
       s.agency_id === agencyId ? { ...s, [field]: value } : s
@@ -240,18 +216,46 @@ const AdminVehiclesAdvancedPage = () => {
   };
 
   const openStockDialog = (vehicle) => {
-    setSelectedVehicle(vehicle);
+    setSelectedVehicle({ ...vehicle });
     setStockDialogOpen(true);
   };
 
+  const updateStockDialog = (agencyId, field, value) => {
+    setSelectedVehicle(prev => ({
+      ...prev,
+      stock_by_agency: prev.stock_by_agency.map(s =>
+        s.agency_id === agencyId ? { ...s, [field]: value } : s
+      )
+    }));
+  };
+
+  const saveStock = async () => {
+    if (!selectedVehicle) return;
+    try {
+      await axios.put(`${API}/admin/vehicles/${selectedVehicle.id}`, {
+        stock_by_agency: selectedVehicle.stock_by_agency
+      });
+      toast.success('Stock mis à jour');
+      setStockDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error('Error saving stock:', error);
+      toast.error('Erreur lors de la sauvegarde du stock');
+    }
+  };
+
   const filteredVehicles = vehicles.filter(v => {
-    if (categoryFilter !== 'all' && v.category !== categoryFilter) return false;
-    if (motorizationFilter !== 'all' && v.motorization !== motorizationFilter) return false;
+    if (categoryFilter !== 'all' && v.category_id !== categoryFilter) return false;
+    if (motorizationFilter !== 'all' && v.fuel_type !== motorizationFilter) return false;
     return true;
   });
 
   const getTotalStock = (vehicle) => {
     return vehicle.stock_by_agency?.reduce((sum, s) => sum + (s.quantity || 0), 0) || 0;
+  };
+
+  const getCategoryName = (category_id) => {
+    return categories.find(c => c.id === category_id)?.name_fr || category_id;
   };
 
   return (
@@ -284,7 +288,7 @@ const AdminVehiclesAdvancedPage = () => {
                 <SelectContent>
                   <SelectItem value="all">Toutes</SelectItem>
                   {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    <SelectItem key={cat.id || cat} value={cat.id || cat}>{cat.name_fr || cat.name_en || cat.code || cat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -322,7 +326,7 @@ const AdminVehiclesAdvancedPage = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Photo</TableHead>
-                  <TableHead>Nom</TableHead>
+                  <TableHead>Marque / Modèle</TableHead>
                   <TableHead>Catégorie</TableHead>
                   <TableHead>Motorisation</TableHead>
                   <TableHead>Passagers</TableHead>
@@ -338,23 +342,23 @@ const AdminVehiclesAdvancedPage = () => {
                     <TableCell>
                       <div className="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
                         {vehicle.image_url ? (
-                          <img src={vehicle.image_url} alt={vehicle.name} className="w-full h-full object-cover" />
+                          <img src={vehicle.image_url} alt={`${vehicle.brand} ${vehicle.model}`} className="w-full h-full object-cover" />
                         ) : (
                           <Car className="h-8 w-8 text-slate-400" />
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{vehicle.name}</TableCell>
+                    <TableCell className="font-medium">{vehicle.brand} {vehicle.model}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{vehicle.category}</Badge>
+                      <Badge variant="secondary">{getCategoryName(vehicle.category_id)}</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge className={
-                        vehicle.motorization === 'électrique' ? 'bg-green-100 text-green-800' :
-                        vehicle.motorization === 'hybride' ? 'bg-blue-100 text-blue-800' :
+                        vehicle.fuel_type === 'électrique' ? 'bg-green-100 text-green-800' :
+                        vehicle.fuel_type === 'hybride' ? 'bg-blue-100 text-blue-800' :
                         'bg-slate-100 text-slate-800'
                       }>
-                        {vehicle.motorization}
+                        {vehicle.fuel_type}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -432,10 +436,9 @@ const AdminVehiclesAdvancedPage = () => {
           </DialogHeader>
 
           <Tabs defaultValue="general">
-            <TabsList className="grid grid-cols-4 w-full">
+            <TabsList className="grid grid-cols-3 w-full">
               <TabsTrigger value="general">Général</TabsTrigger>
               <TabsTrigger value="photos">Photos</TabsTrigger>
-              <TabsTrigger value="specs">Spécifications</TabsTrigger>
               <TabsTrigger value="stock">Stock</TabsTrigger>
             </TabsList>
 
@@ -443,25 +446,33 @@ const AdminVehiclesAdvancedPage = () => {
             <TabsContent value="general" className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Nom du véhicule *</Label>
+                  <Label>Marque *</Label>
                   <Input
-                    value={vehicleForm.name}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, name: e.target.value })}
-                    placeholder="Ex: Renault Clio"
+                    value={vehicleForm.brand}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, brand: e.target.value })}
+                    placeholder="Ex: Renault"
+                  />
+                </div>
+                <div>
+                  <Label>Modèle *</Label>
+                  <Input
+                    value={vehicleForm.model}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, model: e.target.value })}
+                    placeholder="Ex: Clio"
                   />
                 </div>
                 <div>
                   <Label>Catégorie *</Label>
                   <Select
-                    value={vehicleForm.category}
-                    onValueChange={(v) => setVehicleForm({ ...vehicleForm, category: v })}
+                    value={vehicleForm.category_id}
+                    onValueChange={(v) => setVehicleForm({ ...vehicleForm, category_id: v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Sélectionner" />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        <SelectItem key={cat.id || cat} value={cat.id || cat}>{cat.name_fr || cat.name_en || cat.code || cat}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -471,7 +482,7 @@ const AdminVehiclesAdvancedPage = () => {
                   <Input
                     type="number"
                     value={vehicleForm.passengers}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, passengers: e.target.value })}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, passengers: parseInt(e.target.value) || 0 })}
                   />
                 </div>
                 <div>
@@ -479,14 +490,14 @@ const AdminVehiclesAdvancedPage = () => {
                   <Input
                     type="number"
                     value={vehicleForm.luggage}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, luggage: e.target.value })}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, luggage: parseInt(e.target.value) || 0 })}
                   />
                 </div>
                 <div>
                   <Label>Motorisation</Label>
                   <Select
-                    value={vehicleForm.motorization}
-                    onValueChange={(v) => setVehicleForm({ ...vehicleForm, motorization: v })}
+                    value={vehicleForm.fuel_type}
+                    onValueChange={(v) => setVehicleForm({ ...vehicleForm, fuel_type: v })}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -514,16 +525,22 @@ const AdminVehiclesAdvancedPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-
-              <div>
-                <Label>Description</Label>
-                <Textarea
-                  value={vehicleForm.description}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, description: e.target.value })}
-                  rows={3}
-                  placeholder="Description du véhicule..."
-                />
+                <div>
+                  <Label>Année</Label>
+                  <Input
+                    type="number"
+                    value={vehicleForm.year}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, year: parseInt(e.target.value) || 2024 })}
+                  />
+                </div>
+                <div>
+                  <Label>Nombre de portes</Label>
+                  <Input
+                    type="number"
+                    value={vehicleForm.doors}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, doors: parseInt(e.target.value) || 4 })}
+                  />
+                </div>
               </div>
 
               <div>
@@ -541,23 +558,6 @@ const AdminVehiclesAdvancedPage = () => {
                     >
                       {tag}
                     </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <Label>Équipements</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-                  {defaultFeatures.map(feature => (
-                    <div key={feature} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={vehicleForm.features.includes(feature)}
-                        onChange={() => toggleFeature(feature)}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{feature}</span>
-                    </div>
                   ))}
                 </div>
               </div>
@@ -615,56 +615,6 @@ const AdminVehiclesAdvancedPage = () => {
                   </div>
                 </div>
               )}
-            </TabsContent>
-
-            {/* Tab Specs */}
-            <TabsContent value="specs" className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Moteur</Label>
-                  <Input
-                    value={vehicleForm.technical_specs.engine}
-                    onChange={(e) => setVehicleForm({
-                      ...vehicleForm,
-                      technical_specs: { ...vehicleForm.technical_specs, engine: e.target.value }
-                    })}
-                    placeholder="Ex: 1.6 L 16V"
-                  />
-                </div>
-                <div>
-                  <Label>Puissance</Label>
-                  <Input
-                    value={vehicleForm.technical_specs.power}
-                    onChange={(e) => setVehicleForm({
-                      ...vehicleForm,
-                      technical_specs: { ...vehicleForm.technical_specs, power: e.target.value }
-                    })}
-                    placeholder="Ex: 110 ch / 81 kW"
-                  />
-                </div>
-                <div>
-                  <Label>Consommation</Label>
-                  <Input
-                    value={vehicleForm.technical_specs.fuel_consumption}
-                    onChange={(e) => setVehicleForm({
-                      ...vehicleForm,
-                      technical_specs: { ...vehicleForm.technical_specs, fuel_consumption: e.target.value }
-                    })}
-                    placeholder="Ex: 5.2 L/100km"
-                  />
-                </div>
-                <div>
-                  <Label>Émissions CO2</Label>
-                  <Input
-                    value={vehicleForm.technical_specs.co2_emissions}
-                    onChange={(e) => setVehicleForm({
-                      ...vehicleForm,
-                      technical_specs: { ...vehicleForm.technical_specs, co2_emissions: e.target.value }
-                    })}
-                    placeholder="Ex: 120 g/km"
-                  />
-                </div>
-              </div>
             </TabsContent>
 
             {/* Tab Stock */}
@@ -758,14 +708,16 @@ const AdminVehiclesAdvancedPage = () => {
       <Dialog open={stockDialogOpen} onOpenChange={setStockDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Stock - {selectedVehicle?.name}</DialogTitle>
-            <DialogDescription>Disponibilité par agence</DialogDescription>
+            <DialogTitle>
+              Stock — {selectedVehicle ? `${selectedVehicle.brand} ${selectedVehicle.model}` : ''}
+            </DialogTitle>
+            <DialogDescription>Modifiez les quantités disponibles par agence</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             {selectedVehicle?.stock_by_agency?.map(stock => (
-              <div key={stock.agency_id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-5 w-5 text-slate-400" />
+              <div key={stock.agency_id} className="flex items-center justify-between p-3 border rounded-lg gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <MapPin className="h-5 w-5 text-slate-400 shrink-0" />
                   <div>
                     <div className="font-medium">{stock.agency_name}</div>
                     <div className="text-sm text-slate-500">
@@ -775,10 +727,26 @@ const AdminVehiclesAdvancedPage = () => {
                     </div>
                   </div>
                 </div>
-                <div className="text-2xl font-bold">{stock.quantity}</div>
+                <div className="w-24">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={stock.quantity}
+                    onChange={(e) => updateStockDialog(stock.agency_id, 'quantity', parseInt(e.target.value) || 0)}
+                    className="text-center font-bold text-lg"
+                  />
+                </div>
               </div>
             ))}
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStockDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={saveStock} className="bg-[#F5A623] hover:bg-[#F5A623]/90 text-black">
+              Enregistrer le stock
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -121,7 +121,7 @@ const AgentReservationsPage = () => {
     const headers = ['Numéro', 'Client', 'Véhicule', 'Date départ', 'Date retour', 'Statut', 'Total'];
     const csvData = filteredReservations.map(res => [
       res.reference,
-      res.customer_name || '-',
+      res.customer_name || `${res.driver_info?.first_name || ''} ${res.driver_info?.last_name || ''}`.trim() || '-',
       res.vehicle_category || '-',
       res.pickup_date,
       res.return_date,
@@ -168,7 +168,7 @@ const AgentReservationsPage = () => {
   const filteredReservations = reservations.filter(res => {
     const matchesSearch = !searchTerm ||
       res.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      res.customer_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      (res.customer_name || `${res.driver_info?.first_name || ''} ${res.driver_info?.last_name || ''}`.trim())?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesDateFrom = !dateFrom || new Date(res.pickup_date) >= new Date(dateFrom);
     const matchesDateTo = !dateTo || new Date(res.pickup_date) <= new Date(dateTo);
@@ -306,7 +306,7 @@ const AgentReservationsPage = () => {
                       <TableCell className="font-mono font-medium text-[#3D3A6B]">
                         {reservation.reference}
                       </TableCell>
-                      <TableCell>{reservation.customer_name || '-'}</TableCell>
+                      <TableCell>{reservation.customer_name || `${reservation.driver_info?.first_name || ''} ${reservation.driver_info?.last_name || ''}`.trim() || '-'}</TableCell>
                       <TableCell>{reservation.vehicle_category || '-'}</TableCell>
                       <TableCell>{reservation.pickup_date}</TableCell>
                       <TableCell>{reservation.return_date}</TableCell>
@@ -390,7 +390,7 @@ const AgentReservationsPage = () => {
                   <p className="text-sm font-medium text-slate-600">
                     {i18n.language === 'fr' ? 'Client' : 'Customer'}
                   </p>
-                  <p className="text-sm text-slate-800">{selectedReservation.customer_name || '-'}</p>
+                  <p className="text-sm text-slate-800">{selectedReservation.customer_name || `${selectedReservation.driver_info?.first_name || ''} ${selectedReservation.driver_info?.last_name || ''}`.trim() || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-600">

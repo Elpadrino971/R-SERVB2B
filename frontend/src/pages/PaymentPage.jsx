@@ -13,7 +13,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import {
   CreditCard, Building2, CheckCircle2, Calendar, MapPin,
-  User, Car, Shield, Download, Loader2, AlertCircle
+  User, Car, Shield, Download, AlertCircle, Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -57,7 +57,6 @@ const PaymentPage = () => {
       await axios.post(`${API}/reservations/${reservationId}/confirm-payment-method`, {
         payment_method: 'on_site'
       });
-
       toast.success('Confirmation enregistrée !');
       setPaymentConfirmed(true);
     } catch (error) {
@@ -68,25 +67,16 @@ const PaymentPage = () => {
     }
   };
 
-  const handlePayNow = async () => {
-    try {
-      setProcessing(true);
-
-      // Create Stripe checkout session
-      const response = await axios.post(`${API}/payments/create-checkout-session`, {
-        reservation_id: reservationId
-      });
-
-      if (response.data.checkout_url) {
-        // Redirect to Stripe checkout
-        window.location.href = response.data.checkout_url;
-      } else {
-        toast.error('Erreur lors de la création de la session de paiement');
-      }
-    } catch (error) {
-      console.error('Error creating checkout session:', error);
-      toast.error('Erreur lors du paiement en ligne. Veuillez réessayer ou payer à l\'agence.');
-      setProcessing(false);
+  const handlePayNow = () => {
+    // Rediriger vers le lien de paiement externe si disponible
+    const paymentUrl = reservation?.payment_link_url;
+    if (paymentUrl) {
+      window.location.href = paymentUrl;
+    } else {
+      toast.info(
+        'Aucun lien de paiement disponible pour cette réservation. ' +
+        'Veuillez régler à l\'agence ou contacter votre conseiller.'
+      );
     }
   };
 
@@ -336,28 +326,30 @@ const PaymentPage = () => {
               </CardContent>
             </Card>
 
-            {/* Pay Online */}
-            <Card className="border-2 hover:border-[#F5A623] transition-all cursor-pointer">
+            {/* Pay via link */}
+            <Card className={`border-2 transition-all ${reservation?.payment_link_url ? 'hover:border-[#F5A623] cursor-pointer' : 'opacity-60'}`}>
               <CardHeader>
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-3 bg-orange-100 rounded-full">
                     <CreditCard className="h-6 w-6 text-orange-600" />
                   </div>
-                  <CardTitle>Paiement en ligne sécurisé</CardTitle>
+                  <CardTitle>Paiement en ligne</CardTitle>
                 </div>
                 <CardDescription>
-                  Réglez maintenant par carte bancaire de manière sécurisée
+                  {reservation?.payment_link_url
+                    ? 'Réglez maintenant via le lien de paiement sécurisé'
+                    : 'Aucun lien de paiement disponible pour cette réservation'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 mb-6 text-sm text-gray-600">
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Paiement 100% sécurisé par Stripe</span>
+                    <span>Paiement sécurisé via lien externe</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Confirmation immédiate par email</span>
+                    <span>Confirmation par email après règlement</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
@@ -366,20 +358,13 @@ const PaymentPage = () => {
                 </ul>
                 <Button
                   onClick={handlePayNow}
-                  disabled={processing}
-                  className="w-full bg-[#F5A623] hover:bg-[#E09612] text-gray-900"
+                  disabled={!reservation?.payment_link_url}
+                  className="w-full bg-[#F5A623] hover:bg-[#E09612] text-gray-900 disabled:opacity-50"
                 >
-                  {processing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Redirection...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      Payer maintenant {reservation.total_price.toFixed(2)} €
-                    </>
-                  )}
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  {reservation?.payment_link_url
+                    ? `Payer maintenant ${reservation.total_price.toFixed(2)} €`
+                    : 'Lien non disponible'}
                 </Button>
               </CardContent>
             </Card>

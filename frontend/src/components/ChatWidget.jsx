@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -11,7 +12,8 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const ChatWidget = () => {
   const { t, i18n } = useTranslation();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -19,26 +21,26 @@ const ChatWidget = () => {
   const [loading, setLoading] = useState(false);
   const [sessionId] = useState(() => `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   const messagesEndRef = useRef(null);
+  const isDashboard = /^\/(admin|agent|company|influencer)/.test(location.pathname);
 
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      // Welcome message
-      const welcomeMsg = i18n.language === 'fr'
-        ? "Bonjour ! Je suis l'assistant virtuel d'Auto Discount Location. Comment puis-je vous aider aujourd'hui ?"
-        : "Hello! I'm the Auto Discount Location virtual assistant. How can I help you today?";
-      
-      setMessages([{
-        id: 'welcome',
-        role: 'assistant',
-        content: welcomeMsg,
-        timestamp: new Date().toISOString()
-      }]);
-    }
-  }, [isOpen, i18n.language]);
+    if (isDashboard || !isOpen || messages.length > 0) return;
+    const welcomeMsg = i18n.language === 'fr'
+      ? "Bonjour ! Je suis l'assistant virtuel d'Auto Discount Location. Comment puis-je vous aider aujourd'hui ?"
+      : "Hello! I'm the Auto Discount Location virtual assistant. How can I help you today?";
+    setMessages([{
+      id: 'welcome',
+      role: 'assistant',
+      content: welcomeMsg,
+      timestamp: new Date().toISOString()
+    }]);
+  }, [isOpen, i18n.language, isDashboard]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  if (isDashboard) return null;
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;

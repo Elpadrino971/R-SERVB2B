@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -30,7 +30,8 @@ import {
   TableRow,
 } from '../components/ui/table';
 import {
-  DollarSign, Plus, Edit, Trash2, Calendar, Download, Upload
+  DollarSign, Plus, Edit, Trash2, Calendar, Download, Upload,
+  FileSpreadsheet, CheckCircle2, AlertCircle, Eye, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -42,6 +43,20 @@ const AdminPricingPage = () => {
   const [pricingGrids, setPricingGrids] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Import Excel state
+  const [batches, setBatches] = useState([]);
+  const [batchesLoading, setBatchesLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [selectedBatch, setSelectedBatch] = useState(null);
+  const [batchRows, setBatchRows] = useState([]);
+  const [batchDetailOpen, setBatchDetailOpen] = useState(false);
+  const [batchRowsLoading, setBatchRowsLoading] = useState(false);
+  const [expandedBatch, setExpandedBatch] = useState(null);
+  const fileInputRef = useRef(null);
+  const token = localStorage.getItem('token');
+  const headers = { Authorization: `Bearer ${token}` };
 
   // Season Dialog
   const [seasonDialogOpen, setSeasonDialogOpen] = useState(false);
@@ -68,6 +83,7 @@ const AdminPricingPage = () => {
 
   useEffect(() => {
     fetchData();
+    fetchBatches();
   }, []);
 
   const fetchData = async () => {
@@ -247,6 +263,85 @@ const AdminPricingPage = () => {
     toast.info(i18n.language === 'fr' ? 'Import CSV (simulation)' : 'Import CSV (simulation)');
   };
 
+  // Import Excel Functions
+  const fetchBatches = async () => {
+    setBatchesLoading(true);
+    try {
+      const res = await axios.get(`${API}/admin/pricing/batches`, { headers });
+      setBatches(res.data || []);
+    } catch (e) {
+      // silently fail — endpoint might not exist if backend is old
+    } finally {
+      setBatchesLoading(false);
+    }
+  };
+
+  const handleFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.match(/\.(xlsx|xls)$/i)) {
+      toast.error('Format non supporté. Utilisez un fichier Excel (.xlsx ou .xls)');
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress({ status: 'uploading', message: `Envoi de ${file.name}...` });
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await axios.post(`${API}/admin/pricing/import-excel`, formData, {
+        headers: { ...headers, 'Content-Type': 'multipart/form-data' },
+      });
+      const data = res.data;
+      setUploadProgress({
+        status: 'success',
+        message: `Import réussi : ${data.rows_imported || data.row_count || 0} lignes importées`,
+        batch: data,
+      });
+      toast.success(`Grille importée : ${data.rows_imported || data.row_count || 0} lignes`);
+      fetchBatches();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Erreur lors de l\'import';
+      setUploadProgress({ status: 'error', message: msg });
+      toast.error(msg);
+    } finally {
+      setUploading(false);
+      // Reset input so same file can be re-uploaded
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteBatch = async (batchId) => {
+    if (!window.confirm('Désactiver cet import ? Les lignes tarifaires associées ne seront plus utilisées.')) return;
+    try {
+      await axios.delete(`${API}/admin/pricing/batches/${batchId}`, { headers });
+      toast.success('Import désactivé');
+      fetchBatches();
+    } catch (e) {
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
+  const handleViewBatch = async (batch) => {
+    setSelectedBatch(batch);
+    setBatchDetailOpen(true);
+    setBatchRowsLoading(true);
+    try {
+      const res = await axios.get(`${API}/admin/pricing/batches/${batch.id}`, { headers });
+      setBatchRows(res.data.rows || []);
+    } catch (e) {
+      toast.error('Erreur chargement des lignes');
+    } finally {
+      setBatchRowsLoading(false);
+    }
+  };
+
   const getCategoryName = (categoryId) => {
     const cat = categories.find(c => c.id === categoryId);
     return cat?.name || categoryId;
@@ -280,12 +375,16 @@ const AdminPricingPage = () => {
       </div>
 
       <Tabs defaultValue="seasons" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-xl grid-cols-3">
           <TabsTrigger value="seasons" data-testid="seasons-tab">
             {i18n.language === 'fr' ? 'Saisons' : 'Seasons'}
           </TabsTrigger>
           <TabsTrigger value="pricing" data-testid="pricing-tab">
             {i18n.language === 'fr' ? 'Grilles Tarifaires' : 'Pricing Grids'}
+          </TabsTrigger>
+          <TabsTrigger value="import-excel" data-testid="import-excel-tab">
+            <FileSpreadsheet className="h-4 w-4 mr-1" />
+            Import Excel
           </TabsTrigger>
         </TabsList>
 
@@ -358,6 +457,173 @@ const AdminPricingPage = () => {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Import Excel Tab */}
+        <TabsContent value="import-excel" className="space-y-6">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+
+          {/* Upload zone */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-[#3D3A6B]" />
+                Importer une grille tarifaire Excel
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div
+                  onClick={!uploading ? handleFileSelect : undefined}
+                  className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors ${
+                    uploading
+                      ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
+                      : 'border-[#3D3A6B]/30 hover:border-[#3D3A6B] hover:bg-[#3D3A6B]/5 cursor-pointer'
+                  }`}
+                >
+                  {uploading ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="h-10 w-10 border-4 border-[#3D3A6B] border-t-transparent rounded-full animate-spin" />
+                      <p className="text-sm text-slate-600">{uploadProgress?.message}</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="p-4 rounded-full bg-[#3D3A6B]/10">
+                        <Upload className="h-8 w-8 text-[#3D3A6B]" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-700">Cliquez pour sélectionner un fichier Excel</p>
+                        <p className="text-sm text-slate-500 mt-1">Formats acceptés : .xlsx, .xls</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="border-[#3D3A6B] text-[#3D3A6B]"
+                        onClick={(e) => { e.stopPropagation(); handleFileSelect(); }}
+                      >
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        Parcourir...
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Upload result */}
+                {uploadProgress && !uploading && (
+                  <div className={`flex items-start gap-3 p-4 rounded-lg border ${
+                    uploadProgress.status === 'success'
+                      ? 'bg-green-50 border-green-200'
+                      : 'bg-red-50 border-red-200'
+                  }`}>
+                    {uploadProgress.status === 'success'
+                      ? <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                      : <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                    }
+                    <div>
+                      <p className={`text-sm font-medium ${uploadProgress.status === 'success' ? 'text-green-700' : 'text-red-700'}`}>
+                        {uploadProgress.message}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Format info */}
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-800 space-y-1">
+                  <p className="font-medium">Format attendu :</p>
+                  <ul className="list-disc list-inside space-y-0.5 text-blue-700">
+                    <li>1 feuille (sheet) = 1 saison / période</li>
+                    <li>Ligne 1 : métadonnées (booking period, rental period, type semaine/weekend, numéro semaine, année)</li>
+                    <li>Colonne A : code catégorie véhicule</li>
+                    <li>Colonnes B→F : prix par tranche de durée (1-3j, 4-7j, 8-14j, 15-21j, 22+j)</li>
+                    <li>104 feuilles maximum (52 semaines × tarif semaine + weekend)</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Batches list */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Imports précédents
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={fetchBatches} disabled={batchesLoading}>
+                  {batchesLoading ? 'Chargement...' : 'Actualiser'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {batchesLoading ? (
+                <div className="p-8 text-center text-slate-500">Chargement...</div>
+              ) : batches.length === 0 ? (
+                <div className="p-8 text-center text-slate-500">
+                  <FileSpreadsheet className="h-10 w-10 mx-auto mb-3 text-slate-300" />
+                  <p>Aucun import Excel pour l'instant</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nom / Fichier</TableHead>
+                      <TableHead className="text-center">Lignes</TableHead>
+                      <TableHead>Importé le</TableHead>
+                      <TableHead>Par</TableHead>
+                      <TableHead className="text-center">Statut</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {batches.map(batch => (
+                      <TableRow key={batch.id}>
+                        <TableCell>
+                          <p className="font-medium text-sm">{batch.name || batch.source_file}</p>
+                          {batch.name && batch.source_file && (
+                            <p className="text-xs text-slate-400">{batch.source_file}</p>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline">{batch.row_count || '—'}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-slate-600">
+                          {batch.imported_at
+                            ? new Date(batch.imported_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+                            : '—'}
+                        </TableCell>
+                        <TableCell className="text-sm text-slate-600">{batch.imported_by || '—'}</TableCell>
+                        <TableCell className="text-center">
+                          {batch.is_active
+                            ? <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-100 px-2 py-0.5 rounded-full border border-green-200"><CheckCircle2 className="h-3 w-3" /> Actif</span>
+                            : <span className="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">Désactivé</span>
+                          }
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            <Button size="sm" variant="outline" onClick={() => handleViewBatch(batch)}>
+                              <Eye className="h-3 w-3 mr-1" /> Détails
+                            </Button>
+                            {batch.is_active && (
+                              <Button size="sm" variant="outline" className="text-red-500" onClick={() => handleDeleteBatch(batch.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -531,6 +797,71 @@ const AdminPricingPage = () => {
             <Button onClick={saveSeason} className="bg-[#3D3A6B] hover:bg-[#3D3A6B]/90" data-testid="save-season-btn">
               {i18n.language === 'fr' ? 'Enregistrer' : 'Save'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Detail Dialog */}
+      <Dialog open={batchDetailOpen} onOpenChange={setBatchDetailOpen}>
+        <DialogContent className="max-w-5xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              Détail de l'import : {selectedBatch?.name || selectedBatch?.source_file}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedBatch?.row_count || 0} lignes tarifaires •{' '}
+              importé le {selectedBatch?.imported_at ? new Date(selectedBatch.imported_at).toLocaleString('fr-FR') : '—'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {batchRowsLoading ? (
+              <div className="p-8 text-center text-slate-500">Chargement des lignes...</div>
+            ) : batchRows.length === 0 ? (
+              <div className="p-8 text-center text-slate-500">Aucune ligne dans cet import</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Catégorie</TableHead>
+                    <TableHead>Sem.</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Booking</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead className="text-right">1-3j</TableHead>
+                    <TableHead className="text-right">4-7j</TableHead>
+                    <TableHead className="text-right">8-14j</TableHead>
+                    <TableHead className="text-right">15-21j</TableHead>
+                    <TableHead className="text-right">22+j</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {batchRows.map(row => (
+                    <TableRow key={row.id} className={!row.is_active ? 'opacity-40' : ''}>
+                      <TableCell className="font-mono text-xs">{row.category_id}</TableCell>
+                      <TableCell className="text-sm">S{row.week_number}/{row.year}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={row.week_type === 'weekend'
+                          ? 'border-purple-300 text-purple-700 bg-purple-50'
+                          : 'border-blue-300 text-blue-700 bg-blue-50'
+                        }>
+                          {row.week_type === 'weekend' ? 'WE' : 'Sem'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-500">{row.booking_period_start} → {row.booking_period_end}</TableCell>
+                      <TableCell className="text-xs text-slate-500">{row.rental_period_start} → {row.rental_period_end}</TableCell>
+                      <TableCell className="text-right text-sm">{row.price_1_3_days != null ? `${row.price_1_3_days}€` : '—'}</TableCell>
+                      <TableCell className="text-right text-sm">{row.price_4_7_days != null ? `${row.price_4_7_days}€` : '—'}</TableCell>
+                      <TableCell className="text-right text-sm">{row.price_8_14_days != null ? `${row.price_8_14_days}€` : '—'}</TableCell>
+                      <TableCell className="text-right text-sm">{row.price_15_21_days != null ? `${row.price_15_21_days}€` : '—'}</TableCell>
+                      <TableCell className="text-right text-sm">{row.price_22_plus_days != null ? `${row.price_22_plus_days}€` : '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBatchDetailOpen(false)}>Fermer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

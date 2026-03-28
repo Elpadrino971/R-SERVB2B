@@ -36,8 +36,9 @@ import {
 } from '../components/ui/dropdown-menu';
 import {
   Calendar, Search, Download, Eye, MoreVertical,
-  ChevronLeft, ChevronRight, Clock, CheckCircle, XCircle, AlertCircle, ShieldCheck
+  ChevronLeft, ChevronRight, Clock, CheckCircle, XCircle, AlertCircle, ShieldCheck, Link
 } from 'lucide-react';
+import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
 import { exportToCSV, exportConfigs } from '../utils/exportToCSV';
 import SwiklyDepositModal from '../components/SwiklyDepositModal';
@@ -59,6 +60,10 @@ const AdminReservationsPage = () => {
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [swiklyModalOpen, setSwiklyModalOpen] = useState(false);
   const [swiklyReservation, setSwiklyReservation] = useState(null);
+  const [paymentLinkDialogOpen, setPaymentLinkDialogOpen] = useState(false);
+  const [paymentLinkReservation, setPaymentLinkReservation] = useState(null);
+  const [paymentLinkUrl, setPaymentLinkUrl] = useState('');
+  const [sendingPaymentLink, setSendingPaymentLink] = useState(false);
 
   const limit = 20;
 
@@ -132,6 +137,34 @@ const AdminReservationsPage = () => {
 
   const handleSwiklySuccess = () => {
     fetchReservations(); // Refresh the list
+  };
+
+  const openPaymentLinkDialog = (reservation) => {
+    setPaymentLinkReservation(reservation);
+    setPaymentLinkUrl(reservation.payment_link_url || '');
+    setPaymentLinkDialogOpen(true);
+  };
+
+  const sendPaymentLink = async () => {
+    if (!paymentLinkUrl.trim()) {
+      toast.error('Veuillez renseigner un lien de paiement');
+      return;
+    }
+    setSendingPaymentLink(true);
+    try {
+      await axios.post(`${API}/reservations/${paymentLinkReservation.id}/send-payment-link`, {
+        payment_url: paymentLinkUrl.trim(),
+      });
+      toast.success(`Lien de paiement envoyé à ${paymentLinkReservation.customer_info?.email || 'le client'}`);
+      setPaymentLinkDialogOpen(false);
+      setPaymentLinkUrl('');
+      fetchReservations();
+    } catch (error) {
+      console.error('Error sending payment link:', error);
+      toast.error('Erreur lors de l\'envoi du lien de paiement');
+    } finally {
+      setSendingPaymentLink(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -272,7 +305,7 @@ const AdminReservationsPage = () => {
                       {res.agent_email || res.company_name || '-'}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {res.customer_name || `${res.customer_first_name} ${res.customer_last_name}`}
+                      {res.customer_name || `${res.driver_info?.first_name || res.customer_first_name || ''} ${res.driver_info?.last_name || res.customer_last_name || ''}`.trim() || '-'}
                     </TableCell>
                     <TableCell className="text-sm text-slate-600">
                       {res.vehicle_name || '-'}
@@ -304,6 +337,10 @@ const AdminReservationsPage = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openPaymentLinkDialog(res)}>
+                              <Link className="mr-2 h-4 w-4" />
+                              {i18n.language === 'fr' ? 'Envoyer lien de paiement' : 'Send payment link'}
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openSwiklyModal(res)}>
                               <ShieldCheck className="mr-2 h-4 w-4" />
                               {i18n.language === 'fr' ? 'Gérer caution Swikly' : 'Manage Swikly deposit'}
@@ -388,10 +425,9 @@ const AdminReservationsPage = () => {
                     {i18n.language === 'fr' ? 'Client' : 'Client'}
                   </label>
                   <p className="font-medium">
-                    {selectedReservation.customer_name ||
-                     `${selectedReservation.customer_first_name} ${selectedReservation.customer_last_name}`}
+                    {selectedReservation.customer_name || `${selectedReservation.driver_info?.first_name || selectedReservation.customer_first_name || ''} ${selectedReservation.driver_info?.last_name || selectedReservation.customer_last_name || ''}`.trim() || '-'}
                   </p>
-                  <p className="text-sm text-slate-600">{selectedReservation.customer_email}</p>
+                  <p className="text-sm text-slate-600">{selectedReservation.customer_email || selectedReservation.driver_info?.email || '-'}</p>
                 </div>
 
                 <div>
@@ -480,6 +516,53 @@ const AdminReservationsPage = () => {
         reservation={swiklyReservation}
         onSuccess={handleSwiklySuccess}
       />
+
+      {/* Dialog — Envoyer lien de paiement */}
+      <Dialog open={paymentLinkDialogOpen} onOpenChange={setPaymentLinkDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Envoyer un lien de paiement</DialogTitle>
+            <DialogDescription>
+              {paymentLinkReservation && (
+                <>
+                  Réservation <strong>{paymentLinkReservation.reference}</strong> —{' '}
+                  {paymentLinkReservation.driver_info?.first_name || paymentLinkReservation.customer_info?.first_name} {paymentLinkReservation.driver_info?.last_name || paymentLinkReservation.customer_info?.last_name}
+                  <br />
+                  Email : <strong>{paymentLinkReservation.driver_info?.email || paymentLinkReservation.customer_info?.email}</strong>
+                  {' · '}Montant : <strong>{paymentLinkReservation.total_price?.toFixed(2)} €</strong>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label htmlFor="admin-payment-url">Lien de paiement</Label>
+              <input
+                id="admin-payment-url"
+                className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#F5A623]"
+                placeholder="https://buy.stripe.com/... ou autre lien"
+                value={paymentLinkUrl}
+                onChange={(e) => setPaymentLinkUrl(e.target.value)}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Ce lien sera envoyé par email au client. Il peut s'agir d'un lien Stripe, PayPal, virement, etc.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentLinkDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              className="bg-[#F5A623] hover:bg-[#F5A623]/90 text-black"
+              onClick={sendPaymentLink}
+              disabled={sendingPaymentLink || !paymentLinkUrl.trim()}
+            >
+              {sendingPaymentLink ? 'Envoi...' : 'Envoyer par email'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -111,6 +111,17 @@ const AdminUsersPage = () => {
     }
   };
 
+  const changeRole = async (userId, newRole) => {
+    try {
+      await axios.put(`${API}/admin/users/${userId}`, { role: newRole });
+      toast.success(`Rôle changé en "${newRole}"`);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating role:', error);
+      toast.error('Erreur lors du changement de rôle');
+    }
+  };
+
   const exportCSV = () => {
     try {
       if (users.length === 0) {
@@ -241,7 +252,22 @@ const AdminUsersPage = () => {
                   <TableRow key={user.id} data-testid={`user-row-${user.id}`}>
                     <TableCell className="font-medium">{user.email}</TableCell>
                     <TableCell>{user.first_name} {user.last_name}</TableCell>
-                    <TableCell>{getRoleBadge(user.role)}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={user.role}
+                        onValueChange={(newRole) => changeRole(user.id, newRole)}
+                      >
+                        <SelectTrigger className="w-36 h-7 text-xs border-0 bg-transparent p-0 focus:ring-0">
+                          <SelectValue>{getRoleBadge(user.role)}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">👑 Admin</SelectItem>
+                          <SelectItem value="agent">🧑‍💼 Agent</SelectItem>
+                          <SelectItem value="company">🏢 Entreprise</SelectItem>
+                          <SelectItem value="influencer">⭐ Influencer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell>{getStatusBadge(user.status || 'active')}</TableCell>
                     <TableCell>
                       {user.role === 'agent' ? `${user.commission_rate || 0}%` : '-'}

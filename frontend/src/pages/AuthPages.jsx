@@ -31,7 +31,7 @@ const LoginPage = () => {
       else if (user.role === 'influencer') navigate('/influencer');
       else navigate('/');
     } catch (error) {
-      toast.error(error.response?.data?.detail || (i18n.language === 'fr' ? 'Erreur de connexion' : 'Login failed'));
+      toast.error(error.message || error.response?.data?.detail || (i18n.language === 'fr' ? 'Erreur de connexion' : 'Login failed'));
     } finally {
       setLoading(false);
     }
@@ -44,7 +44,7 @@ const LoginPage = () => {
         <div className="absolute inset-0 bg-[url('https://images.pexels.com/photos/3024008/pexels-photo-3024008.jpeg')] bg-cover bg-center opacity-20" />
         <div className="relative z-10 flex flex-col justify-center px-12 text-white">
           <img 
-            src="https://customer-assets.emergentagent.com/job_634ba54c-5254-4232-8d61-233474b6274f/artifacts/hvaqrgsp_te%CC%81le%CC%81chargement.png" 
+            src="/logo-auto-discount.png" 
             alt="Auto Discount Location"
             className="h-16 w-auto mb-8"
           />
@@ -65,7 +65,7 @@ const LoginPage = () => {
           <CardHeader className="text-center">
             <div className="lg:hidden mb-4">
               <img 
-                src="https://customer-assets.emergentagent.com/job_634ba54c-5254-4232-8d61-233474b6274f/artifacts/hvaqrgsp_te%CC%81le%CC%81chargement.png" 
+                src="/logo-auto-discount.png" 
                 alt="Auto Discount Location"
                 className="h-12 w-auto mx-auto"
               />
@@ -176,18 +176,25 @@ const RegisterPage = () => {
       toast.success(i18n.language === 'fr' ? 'Compte créé avec succès !' : 'Account created successfully!');
       
       // Redirect based on role
-      if (user.role === 'agent') navigate('/agent');
+      if (user.role === 'admin') navigate('/admin');
+      else if (user.role === 'agent') navigate('/agent');
       else if (user.role === 'company') navigate('/company');
       else if (user.role === 'influencer') navigate('/influencer');
       else navigate('/');
     } catch (error) {
-      toast.error(error.response?.data?.detail || (i18n.language === 'fr' ? 'Erreur lors de l\'inscription' : 'Registration failed'));
+      const detail = error.response?.data?.detail;
+      const msg = Array.isArray(detail) ? detail.map(d => d.msg || d).join(', ') : (detail || error.message);
+      console.error('Register error:', error.response?.data || error);
+      toast.error(msg || (i18n.language === 'fr' ? 'Erreur lors de l\'inscription' : 'Registration failed'));
     } finally {
       setLoading(false);
     }
   };
 
+  // Admin visible uniquement via ?role=admin (pour tests / configuration initiale)
+  const showAdminRole = searchParams.get('role') === 'admin';
   const roleOptions = [
+    ...(showAdminRole ? [{ value: 'admin', label: i18n.language === 'fr' ? 'Administrateur (test)' : 'Admin (test)', icon: User }] : []),
     { value: 'agent', label: t('auth.agent'), icon: Globe },
     { value: 'company', label: t('auth.company'), icon: Building },
     { value: 'influencer', label: t('auth.influencer'), icon: Star },
@@ -200,7 +207,7 @@ const RegisterPage = () => {
         <div className="absolute inset-0 bg-[url('https://images.pexels.com/photos/5716001/pexels-photo-5716001.jpeg')] bg-cover bg-center opacity-20" />
         <div className="relative z-10 flex flex-col justify-center px-12 text-white">
           <img 
-            src="https://customer-assets.emergentagent.com/job_634ba54c-5254-4232-8d61-233474b6274f/artifacts/hvaqrgsp_te%CC%81le%CC%81chargement.png" 
+            src="/logo-auto-discount.png" 
             alt="Auto Discount Location"
             className="h-16 w-auto mb-8"
           />
@@ -230,14 +237,16 @@ const RegisterPage = () => {
           <CardHeader className="text-center">
             <div className="lg:hidden mb-4">
               <img 
-                src="https://customer-assets.emergentagent.com/job_634ba54c-5254-4232-8d61-233474b6274f/artifacts/hvaqrgsp_te%CC%81le%CC%81chargement.png" 
+                src="/logo-auto-discount.png" 
                 alt="Auto Discount Location"
                 className="h-12 w-auto mx-auto"
               />
             </div>
             <CardTitle className="text-2xl">{t('auth.register')}</CardTitle>
             <CardDescription>
-              {i18n.language === 'fr' ? 'Créez votre compte partenaire' : 'Create your partner account'}
+              {showAdminRole
+                ? (i18n.language === 'fr' ? 'Compte administrateur pour tests et configuration initiale. Supprimez-le une fois vos vrais admins créés.' : 'Admin account for testing and initial setup. Remove it once your real admins are configured.')
+                : (i18n.language === 'fr' ? 'Créez votre compte partenaire' : 'Create your partner account')}
             </CardDescription>
           </CardHeader>
           <CardContent>

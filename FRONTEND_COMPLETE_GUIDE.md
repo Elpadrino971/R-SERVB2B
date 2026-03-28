@@ -46,13 +46,13 @@ R-SERVB2B/
 │
 ├── ANALYSE_FRONTEND_MVP.md   # Analyse complète du projet
 ├── RECAP_FINAL.md            # Récapitulatif du MVP
-├── DEPLOIEMENT_EMERGENT.md   # Guide déploiement Emergent.sh
+├── DEPLOIEMENT.md            # Guide déploiement
 └── FRONTEND_COMPLETE_GUIDE.md # Ce fichier
 ```
 
 ---
 
-## 🚀 DÉPLOIEMENT SUR EMERGENT.SH
+## 🚀 DÉPLOIEMENT
 
 ### Étape 1 : Cloner le repository
 
@@ -101,7 +101,7 @@ SWIKLY_API_KEY=api-VOTRE_CLE_SWIKLY
 # OpenAI
 OPENAI_API_KEY=sk-proj-VOTRE_CLE_OPENAI
 OPENAI_ORG_ID=org-VOTRE_ORG_ID
-EMERGENT_LLM_KEY=sk-proj-VOTRE_CLE_OPENAI
+LLM_API_KEY=sk-proj-VOTRE_CLE_OPENAI
 
 # Server Config
 PORT=8000
@@ -137,7 +137,7 @@ nano .env
 **Variables à remplir dans `frontend/.env` :**
 
 ```env
-# Backend URL (sera remplacé par l'URL Emergent.sh)
+# Backend URL (sera remplacé par l'URL de votre backend)
 REACT_APP_BACKEND_URL=http://localhost:8000
 
 # Stripe
@@ -159,16 +159,16 @@ npm install --legacy-peer-deps
 PORT=2000 npm start
 ```
 
-### Étape 4 : Trouver les URLs publiques Emergent.sh
+### Étape 4 : Trouver les URLs publiques
 
-1. **Dans Emergent.sh**, allez dans le panneau **"PORTS"** ou **"Forwarding"**
+1. Dans votre environnement, allez dans le panneau **"PORTS"** ou **"Forwarding"**
 2. Vous verrez :
-   - Port **8000** (Backend) → URL type `https://xxxxx-8000.app.emergent.sh`
-   - Port **2000** (Frontend) → URL type `https://xxxxx-2000.app.emergent.sh`
+   - Port **8000** (Backend) → URL de votre backend
+   - Port **2000** (Frontend) → URL de votre frontend
 
 3. **Mettez à jour `frontend/.env`** avec l'URL backend publique :
 ```env
-REACT_APP_BACKEND_URL=https://xxxxx-8000.app.emergent.sh
+REACT_APP_BACKEND_URL=https://votre-backend-url
 ```
 
 4. **Redémarrez le frontend** :
@@ -307,14 +307,14 @@ git push origin claude/analyze-frontend-site-tHGWM
 
 ---
 
-## 🐛 RÉSOLUTION DES BUGS EMERGENT.SH
+## 🐛 RÉSOLUTION DES BUGS
 
 ### Problème : "localhost ne fonctionne pas"
 
-**Cause** : Sur Emergent.sh (Claude Code web), `localhost` n'est pas accessible directement.
+**Cause** : En environnement cloud/IDE distant, `localhost` n'est pas accessible directement.
 
 **Solution** :
-1. Trouvez les URLs publiques dans le panneau **PORTS** d'Emergent
+1. Trouvez les URLs publiques dans le panneau **PORTS**
 2. Utilisez ces URLs au lieu de localhost
 3. Mettez à jour `frontend/.env` avec l'URL backend publique
 
@@ -322,9 +322,9 @@ git push origin claude/analyze-frontend-site-tHGWM
 
 **Cause** : Le backend n'autorise pas l'origine du frontend.
 
-**Solution** : Dans `backend/.env`, ajoutez l'URL Emergent :
+**Solution** : Dans `backend/.env`, ajoutez l'URL de votre frontend :
 ```env
-CORS_ORIGINS=https://xxxxx-2000.app.emergent.sh,http://localhost:2000
+CORS_ORIGINS=https://votre-frontend-url,http://localhost:2000
 ```
 
 ### Problème : "MongoDB connection failed"
@@ -367,7 +367,7 @@ cd frontend && npm install --legacy-peer-deps
 - [ ] Connexion à l'API backend fonctionne
 - [ ] Authentification fonctionne
 
-### Emergent.sh
+### Tests
 - [ ] Panneau PORTS visible
 - [ ] URL publique backend (port 8000) trouvée
 - [ ] URL publique frontend (port 2000) trouvée
@@ -379,7 +379,7 @@ cd frontend && npm install --legacy-peer-deps
 
 ## 🎯 PROCHAINES ÉTAPES
 
-1. **Tester l'application complète** sur Emergent.sh
+1. **Tester l'application complète**
 2. **Créer un compte admin** via `/register` avec rôle "Super Admin"
 3. **Remplir les données** :
    - Créer des véhicules
@@ -399,7 +399,7 @@ cd frontend && npm install --legacy-peer-deps
 **Documentation disponible** :
 - `ANALYSE_FRONTEND_MVP.md` - Analyse détaillée du frontend
 - `RECAP_FINAL.md` - Récapitulatif complet du projet
-- `DEPLOIEMENT_EMERGENT.md` - Guide déploiement Emergent.sh
+- `DEPLOIEMENT.md` - Guide déploiement
 - `CONFIGURATION_APIS.md` - Configuration des APIs
 
 **Liens utiles** :

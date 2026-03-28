@@ -46,15 +46,9 @@ const IntranetPage = () => {
     try {
       setLoading(true);
       const [announcementsRes, documentsRes, trainingsRes] = await Promise.all([
-        axios.get(`${API}/intranet/announcements`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }),
-        axios.get(`${API}/intranet/documents`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }),
-        axios.get(`${API}/intranet/trainings`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        })
+        axios.get(`${API}/intranet/announcements`),
+        axios.get(`${API}/intranet/documents`),
+        axios.get(`${API}/intranet/trainings`),
       ]);
 
       setAnnouncements(announcementsRes.data.announcements || []);

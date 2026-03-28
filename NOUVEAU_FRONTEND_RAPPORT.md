@@ -98,10 +98,10 @@ Tout est **déjà connecté** et fonctionnel !
 
 ### Le frontend tourne déjà sur le **port 2000** !
 
-#### Sur Emergent.sh :
-1. Ouvrir le panneau **"PORTS"** dans Emergent
+#### En environnement cloud / IDE en ligne :
+1. Ouvrir le panneau **"PORTS"** ou **"Forwarding"**
 2. Trouver l'URL publique du port **2000**
-3. Cliquer dessus (type : `https://xxxxx-2000.app.emergent.sh`)
+3. Cliquer dessus pour accéder au frontend
 
 #### En local (si applicable) :
 - Frontend : http://localhost:2000
@@ -208,7 +208,7 @@ frontend/src/App.js                     (1 ligne)
 ## 🚀 PROCHAINES ÉTAPES
 
 Si le design vous convient :
-1. ✅ **Tester** via l'URL Emergent port 2000
+1. ✅ **Tester** via l'URL du port 2000
 2. ✅ **Donner feedback** sur le design
 3. 📝 **Ajuster** si besoin (couleurs, textes, layout)
 4. 🎨 **Améliorer** les autres pages (vehicles, agencies, etc.)
@@ -219,7 +219,7 @@ Si le design vous convient :
 
 Le frontend est **prêt à tester** maintenant !
 
-**Accédez à l'URL publique du port 2000** dans Emergent.sh pour voir le résultat.
+**Accédez à l'URL publique du port 2000** pour voir le résultat.
 
 Si vous avez des bugs ou des demandes de changement, dites-le moi et je corrige immédiatement !
 

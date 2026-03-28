@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import './i18n';
@@ -13,6 +13,8 @@ import FAQPage from './pages/FAQPage';
 import BlogPage from './pages/BlogPage';
 import EventsPage from './pages/EventsPage';
 import PartnersPage from './pages/PartnersPage';
+import ContactPage from './pages/ContactPage';
+import AboutPage from './pages/AboutPage';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
@@ -36,6 +38,13 @@ import AdminChallengesPage from './pages/AdminChallengesPage';
 import AdminBlogPage from './pages/AdminBlogPage';
 import AdminEventsPage from './pages/AdminEventsPage';
 import AdminSettingsHoursPage from './pages/AdminSettingsHoursPage';
+import AdminAllotmentsPage from './pages/AdminAllotmentsPage';
+import AdminStopSalesPage from './pages/AdminStopSalesPage';
+import AdminAvailabilityPage from './pages/AdminAvailabilityPage';
+import AdminPromosPage from './pages/AdminPromosPage';
+import AdminAuditLogsPage from './pages/AdminAuditLogsPage';
+import AdminNetworksPage from './pages/AdminNetworksPage';
+import AdminStatsPage from './pages/AdminStatsPage';
 
 // Company Pages
 import CompanyDashboard from './pages/CompanyDashboard';
@@ -81,6 +90,12 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
+// Redirect /vehicles vers /vehicles/tourisme en gardant les paramètres de recherche
+const VehiclesRedirect = () => {
+  const { search } = useLocation();
+  return <Navigate to={`/vehicles/tourisme${search}`} replace />;
+};
+
 // Placeholder pages for routes not yet fully implemented
 const PlaceholderPage = ({ title }) => (
   <div className="p-8">
@@ -96,13 +111,17 @@ function AppRoutes() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/vehicles" element={<VehiclesPage />} />
+      <Route path="/vehicles" element={<VehiclesRedirect />} />
+      <Route path="/vehicles/tourisme" element={<VehiclesPage type="tourisme" />} />
+      <Route path="/vehicles/utilitaire" element={<VehiclesPage type="utilitaire" />} />
       <Route path="/agencies" element={<AgenciesPage />} />
       <Route path="/faq" element={<FAQPage />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/partners" element={<PartnersPage />} />
       <Route path="/events" element={<EventsPage />} />
-      <Route path="/contact" element={<PlaceholderPage title="Contact" />} />
+      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/booking" element={<BookingPage />} />
 
       {/* Intranet - Accessible to all authenticated users */}
       <Route
@@ -142,6 +161,7 @@ function AppRoutes() {
       >
         <Route index element={<CompanyDashboard />} />
         <Route path="reservations" element={<CompanyReservationsPage />} />
+        <Route path="reservations/new" element={<BookingPage />} />
         <Route path="drivers" element={<CompanyDriversPage />} />
         <Route path="profile" element={<CompanyProfilePage />} />
       </Route>
@@ -175,11 +195,17 @@ function AppRoutes() {
         <Route path="vehicles" element={<AdminVehiclesPage />} />
         <Route path="agencies" element={<AdminAgenciesPage />} />
         <Route path="pricing" element={<AdminPricingPage />} />
+        <Route path="allotments" element={<AdminAllotmentsPage />} />
+        <Route path="stop-sales" element={<AdminStopSalesPage />} />
+        <Route path="availability" element={<AdminAvailabilityPage />} />
+        <Route path="promos" element={<AdminPromosPage />} />
         <Route path="challenges" element={<AdminChallengesPage />} />
         <Route path="blog" element={<AdminBlogPage />} />
         <Route path="events" element={<AdminEventsPage />} />
         <Route path="settings/hours" element={<AdminSettingsHoursPage />} />
-        <Route path="stats" element={<PlaceholderPage title="Statistiques Avancées" />} />
+        <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+        <Route path="networks" element={<AdminNetworksPage />} />
+        <Route path="stats" element={<AdminStatsPage />} />
       </Route>
 
       {/* Payment Routes */}

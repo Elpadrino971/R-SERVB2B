@@ -12,8 +12,10 @@ import {
 } from '../components/ui/dropdown-menu';
 import { 
   Menu, X, Car, MapPin, BookOpen, Users, Calendar, HelpCircle, 
-  LogIn, UserPlus, User, LogOut, LayoutDashboard, Globe, ChevronDown 
+  LogIn, UserPlus, User, LogOut, LayoutDashboard, Globe, ChevronDown, 
+  Info, MessageCircle 
 } from 'lucide-react';
+import { SITE_CONFIG } from '../data/siteConfig';
 
 const Navbar = () => {
   const { t, i18n } = useTranslation();
@@ -27,13 +29,19 @@ const Navbar = () => {
     localStorage.setItem('language', lng);
   };
 
+  const vehicleDropdownItems = [
+    { to: '/vehicles/tourisme', label: i18n.language === 'fr' ? 'Véhicules de tourisme' : 'Passenger vehicles' },
+    { to: '/vehicles/utilitaire', label: i18n.language === 'fr' ? 'Véhicules utilitaires' : 'Utility vehicles' },
+  ];
+
   const navLinks = [
-    { to: '/vehicles', label: t('nav.vehicles'), icon: Car },
     { to: '/agencies', label: t('nav.agencies'), icon: MapPin },
+    { to: '/about', label: i18n.language === 'fr' ? 'À propos' : 'About', icon: Info },
     { to: '/blog', label: t('nav.blog'), icon: BookOpen },
     { to: '/partners', label: t('nav.partners'), icon: Users },
     { to: '/events', label: t('nav.events'), icon: Calendar },
     { to: '/faq', label: t('nav.faq'), icon: HelpCircle },
+    { to: '/contact', label: 'Contact', icon: MessageCircle },
   ];
 
   const handleLogout = () => {
@@ -50,30 +58,53 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 glass border-b border-slate-200" data-testid="navbar">
+    <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm" data-testid="navbar">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center gap-2" data-testid="logo-link">
               <img 
-                src="https://customer-assets.emergentagent.com/job_634ba54c-5254-4232-8d61-233474b6274f/artifacts/hvaqrgsp_te%CC%81le%CC%81chargement.png" 
-                alt="Auto Discount Location"
-                className="h-10 w-auto"
+                src={SITE_CONFIG.assets?.logo || '/logo-auto-discount.png'} 
+                alt={SITE_CONFIG.name}
+                className="h-16 object-contain"
               />
             </Link>
           </div>
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex lg:items-center lg:gap-1">
+            {/* Menu déroulant Nos véhicules */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-1 ${
+                    location.pathname.startsWith('/vehicles')
+                      ? 'text-[#332859] bg-[#332859]/10'
+                      : 'text-slate-700 hover:text-[#332859] hover:bg-slate-100'
+                  }`}
+                  data-testid="nav-vehicles"
+                >
+                  {t('nav.vehicles')}
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {vehicleDropdownItems.map((item) => (
+                  <DropdownMenuItem key={item.to} asChild>
+                    <Link to={item.to}>{item.label}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {navLinks.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
                 className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                   location.pathname === link.to
-                    ? 'text-[#F5A623] bg-[#F5A623]/10'
-                    : 'text-slate-700 hover:text-[#3D3A6B] hover:bg-slate-100'
+                    ? 'text-[#332859] bg-[#332859]/10'
+                    : 'text-slate-700 hover:text-[#332859] hover:bg-slate-100'
                 }`}
                 data-testid={`nav-${link.to.slice(1)}`}
               >
@@ -117,7 +148,7 @@ const Navbar = () => {
                   <div className="px-2 py-1.5">
                     <p className="text-sm font-medium">{user?.first_name} {user?.last_name}</p>
                     <p className="text-xs text-muted-foreground">{user?.email}</p>
-                    <p className="text-xs text-[#F5A623] capitalize mt-1">{user?.role}</p>
+                    <p className="text-xs text-[#332859] capitalize mt-1">{user?.role}</p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
@@ -167,6 +198,19 @@ const Navbar = () => {
         {mobileMenuOpen && (
           <div className="lg:hidden py-4 border-t border-slate-200 animate-slide-down" data-testid="mobile-menu">
             <div className="space-y-1">
+              <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">{t('nav.vehicles')}</div>
+              {vehicleDropdownItems.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-5 py-2 rounded-md text-sm ${
+                    location.pathname === item.to ? 'text-[#332859] bg-[#332859]/10 font-medium' : 'text-slate-700'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
               {navLinks.map((link) => (
                 <Link
                   key={link.to}
@@ -174,7 +218,7 @@ const Navbar = () => {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium ${
                     location.pathname === link.to
-                      ? 'text-[#F5A623] bg-[#F5A623]/10'
+                      ? 'text-[#332859] bg-[#332859]/10'
                       : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >

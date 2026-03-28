@@ -729,8 +729,8 @@ STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxx
 # Swikly (Phase 4)
 SWIKLY_API_KEY=xxxxxxxxxxxxxx
 
-# Emergent LLM (Chat IA)
-EMERGENT_LLM_KEY=xxxxxxxxxxxxxx
+# LLM / Chat IA (OpenAI compatible)
+LLM_API_KEY=xxxxxxxxxxxxxx
 ```
 
 #### 2. Configuration Frontend
@@ -890,7 +890,7 @@ URL fournie dans `design_guidelines.json`
    - Resend API Key (envoi emails)
    - Stripe API Keys (paiements)
    - Swikly API Key (cautions)
-   - Emergent LLM Key (chat IA)
+   - Clé API LLM (chat IA)
 
 ### 🟠 Dépendances Techniques
 
