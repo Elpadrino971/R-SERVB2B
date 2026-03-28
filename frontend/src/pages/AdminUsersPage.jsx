@@ -30,8 +30,9 @@ import {
 } from '../components/ui/table';
 import {
   Users, Search, Download, Edit, UserCheck, UserX,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, CheckCircle, XCircle, FileText, Clock, Mail
 } from 'lucide-react';
+import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
 import { exportToCSV, exportConfigs } from '../utils/exportToCSV';
 
@@ -49,12 +50,16 @@ const AdminUsersPage = () => {
   const [editUser, setEditUser] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [commissionRate, setCommissionRate] = useState('');
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectUser, setRejectUser] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [onboardingFilter, setOnboardingFilter] = useState('all');
 
   const limit = 20;
 
   useEffect(() => {
     fetchUsers();
-  }, [page, roleFilter, statusFilter, searchTerm]);
+  }, [page, roleFilter, statusFilter, searchTerm, onboardingFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -65,6 +70,7 @@ const AdminUsersPage = () => {
         offset,
         ...(roleFilter !== 'all' && { role: roleFilter }),
         ...(statusFilter !== 'all' && { status: statusFilter }),
+        ...(onboardingFilter !== 'all' && { onboarding_status: onboardingFilter }),
         ...(searchTerm && { search: searchTerm })
       });
 
@@ -138,6 +144,56 @@ const AdminUsersPage = () => {
     }
   };
 
+  const approveUser = async (userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/admin/users/${userId}/approve`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Partenaire approuvé — email envoyé');
+      fetchUsers();
+    } catch (error) {
+      toast.error('Erreur lors de l\'approbation');
+    }
+  };
+
+  const openRejectDialog = (user) => {
+    setRejectUser(user);
+    setRejectReason('');
+    setRejectDialogOpen(true);
+  };
+
+  const confirmReject = async () => {
+    if (!rejectReason.trim()) {
+      toast.error('Veuillez indiquer un motif de refus');
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/admin/users/${rejectUser.id}/reject`, { reason: rejectReason }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Partenaire refusé — email envoyé');
+      setRejectDialogOpen(false);
+      fetchUsers();
+    } catch (error) {
+      toast.error('Erreur lors du refus');
+    }
+  };
+
+  const getOnboardingBadge = (status) => {
+    const config = {
+      pending_email: { class: 'bg-yellow-100 text-yellow-800', label: 'Email à vérifier', icon: <Mail className="h-3 w-3 inline mr-1" /> },
+      pending_kbis: { class: 'bg-orange-100 text-orange-800', label: 'KBIS manquant', icon: <FileText className="h-3 w-3 inline mr-1" /> },
+      pending_review: { class: 'bg-blue-100 text-blue-800', label: 'En attente validation', icon: <Clock className="h-3 w-3 inline mr-1" /> },
+      approved: { class: 'bg-emerald-100 text-emerald-800', label: 'Approuvé', icon: <CheckCircle className="h-3 w-3 inline mr-1" /> },
+      rejected: { class: 'bg-red-100 text-red-800', label: 'Refusé', icon: <XCircle className="h-3 w-3 inline mr-1" /> },
+    };
+    if (!status) return null;
+    const c = config[status] || { class: 'bg-slate-100 text-slate-800', label: status, icon: null };
+    return <Badge className={`${c.class} text-xs`}>{c.icon}{c.label}</Badge>;
+  };
+
   const getRoleBadge = (role) => {
     const roleConfig = {
       admin: { class: 'bg-purple-100 text-purple-800', label: 'Admin' },
@@ -186,7 +242,7 @@ const AdminUsersPage = () => {
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
@@ -221,6 +277,20 @@ const AdminUsersPage = () => {
                 <SelectItem value="inactive">Inactif</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={onboardingFilter} onValueChange={setOnboardingFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Onboarding" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tout l'onboarding</SelectItem>
+                <SelectItem value="pending_review">En attente validation</SelectItem>
+                <SelectItem value="pending_email">Email à vérifier</SelectItem>
+                <SelectItem value="pending_kbis">KBIS manquant</SelectItem>
+                <SelectItem value="approved">Approuvé</SelectItem>
+                <SelectItem value="rejected">Refusé</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -242,6 +312,8 @@ const AdminUsersPage = () => {
                   <TableHead>{i18n.language === 'fr' ? 'Nom' : 'Name'}</TableHead>
                   <TableHead>{i18n.language === 'fr' ? 'Rôle' : 'Role'}</TableHead>
                   <TableHead>{i18n.language === 'fr' ? 'Statut' : 'Status'}</TableHead>
+                  <TableHead>Onboarding</TableHead>
+                  <TableHead>KBIS</TableHead>
                   <TableHead>{i18n.language === 'fr' ? 'Commission' : 'Commission'}</TableHead>
                   <TableHead>{i18n.language === 'fr' ? 'Date création' : 'Created'}</TableHead>
                   <TableHead className="text-right">{i18n.language === 'fr' ? 'Actions' : 'Actions'}</TableHead>
@@ -269,6 +341,21 @@ const AdminUsersPage = () => {
                       </Select>
                     </TableCell>
                     <TableCell>{getStatusBadge(user.status || 'active')}</TableCell>
+                    <TableCell>{getOnboardingBadge(user.onboarding_status)}</TableCell>
+                    <TableCell>
+                      {user.kbis_path ? (
+                        <a
+                          href={`${process.env.REACT_APP_BACKEND_URL}/${user.kbis_path}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-blue-600 hover:underline text-xs"
+                        >
+                          <FileText className="h-3 w-3" /> Voir KBIS
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 text-xs">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {user.role === 'agent' ? `${user.commission_rate || 0}%` : '-'}
                     </TableCell>
@@ -276,7 +363,29 @@ const AdminUsersPage = () => {
                       {new Date(user.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-2 flex-wrap">
+                        {user.onboarding_status === 'pending_review' && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => approveUser(user.id)}
+                              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                              title="Approuver"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openRejectDialog(user)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Refuser"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                         {user.role === 'agent' && (
                           <Button
                             variant="ghost"
@@ -305,7 +414,7 @@ const AdminUsersPage = () => {
                 ))}
                 {users.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                    <TableCell colSpan={9} className="text-center py-8 text-slate-500">
                       {i18n.language === 'fr' ? 'Aucun utilisateur trouvé' : 'No users found'}
                     </TableCell>
                   </TableRow>
@@ -344,6 +453,35 @@ const AdminUsersPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Reject Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Refuser la demande partenaire</DialogTitle>
+            <DialogDescription>
+              {rejectUser && `${rejectUser.first_name} ${rejectUser.last_name} (${rejectUser.email})`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Motif du refus *</label>
+              <Textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Ex: Documents incomplets, KBIS illisible, activité non éligible..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Annuler</Button>
+            <Button onClick={confirmReject} className="bg-red-600 hover:bg-red-700 text-white">
+              Confirmer le refus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Commission Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

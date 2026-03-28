@@ -1506,6 +1506,86 @@ async def admin_update_user(user_id: str, updates: Dict[str, Any], admin: dict =
     await db.users.update_one({"id": user_id}, {"$set": updates})
     return {"success": True}
 
+@api_router.post("/admin/users/{user_id}/approve")
+async def admin_approve_user(user_id: str, admin: dict = Depends(require_admin)):
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"onboarding_status": "approved", "is_active": True, "approved_by": admin["id"], "approved_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    # Send approval email
+    if resend.api_key and user.get("email"):
+        try:
+            params = {
+                "from": SENDER_EMAIL,
+                "to": [user["email"]],
+                "subject": "Votre compte partenaire est approuvé — Auto Discount Location",
+                "html": f"""
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: #3D3A6B; padding: 24px; text-align: center;">
+                        <h1 style="color: white; margin: 0;">Auto Discount Location</h1>
+                    </div>
+                    <div style="padding: 32px; background: #f9fafb;">
+                        <h2 style="color: #3D3A6B;">Bonjour {user.get('first_name', '')},</h2>
+                        <p>Bonne nouvelle ! Votre dossier partenaire a été <strong style="color: #22c55e;">approuvé</strong>.</p>
+                        <p>Vous pouvez maintenant vous connecter à la plateforme et commencer à effectuer des réservations.</p>
+                        <div style="text-align: center; margin: 32px 0;">
+                            <a href="{FRONTEND_URL}/login"
+                               style="background: #F5A623; color: white; padding: 14px 28px;
+                                      border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+                                Accéder à la plateforme
+                            </a>
+                        </div>
+                    </div>
+                    <div style="padding: 16px; text-align: center; color: #999; font-size: 12px;">
+                        © Auto Discount Location — Guadeloupe, Martinique, Guyane, Saint-Martin
+                    </div>
+                </div>
+                """
+            }
+            await asyncio.to_thread(resend.Emails.send, params)
+        except Exception as e:
+            logger.error(f"Failed to send approval email: {e}")
+    return {"success": True, "message": "Partenaire approuvé"}
+
+@api_router.post("/admin/users/{user_id}/reject")
+async def admin_reject_user(user_id: str, reason: str = Body(..., embed=True), admin: dict = Depends(require_admin)):
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"onboarding_status": "rejected", "is_active": False, "rejection_reason": reason, "rejected_by": admin["id"], "rejected_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if resend.api_key and user.get("email"):
+        try:
+            params = {
+                "from": SENDER_EMAIL,
+                "to": [user["email"]],
+                "subject": "Mise à jour de votre dossier partenaire — Auto Discount Location",
+                "html": f"""
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: #3D3A6B; padding: 24px; text-align: center;">
+                        <h1 style="color: white; margin: 0;">Auto Discount Location</h1>
+                    </div>
+                    <div style="padding: 32px; background: #f9fafb;">
+                        <h2 style="color: #3D3A6B;">Bonjour {user.get('first_name', '')},</h2>
+                        <p>Après examen de votre dossier, nous ne pouvons pas l'approuver pour le motif suivant :</p>
+                        <div style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                            <p style="color: #dc2626; margin: 0;">{reason}</p>
+                        </div>
+                        <p>Pour toute question, contactez notre équipe.</p>
+                    </div>
+                </div>
+                """
+            }
+            await asyncio.to_thread(resend.Emails.send, params)
+        except Exception as e:
+            logger.error(f"Failed to send rejection email: {e}")
+    return {"success": True, "message": "Partenaire rejeté"}
+
 @api_router.post("/admin/vehicles/categories")
 async def admin_create_category(category: VehicleCategory, admin: dict = Depends(require_admin)):
     cat_dict = category.model_dump()
