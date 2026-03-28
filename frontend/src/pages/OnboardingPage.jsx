@@ -100,7 +100,7 @@ export default function OnboardingPage() {
       const formData = new FormData();
       formData.append('file', form.kbis_file);
       await axios.post(`${BACKEND_URL}/api/auth/upload-kbis`, formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       setStep(8);
