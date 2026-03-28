@@ -6,7 +6,9 @@ import './i18n';
 
 // Pages
 import HomePage from './pages/HomePageNew';
-import { LoginPage, RegisterPage } from './pages/AuthPages';
+import { LoginPage } from './pages/AuthPages';
+import OnboardingPage from './pages/OnboardingPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import VehiclesPage from './pages/VehiclesPage';
 import AgenciesPage from './pages/AgenciesPage';
 import FAQPage from './pages/FAQPage';
@@ -110,7 +112,8 @@ function AppRoutes() {
       {/* Public Routes */}
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/register" element={<OnboardingPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/vehicles" element={<VehiclesRedirect />} />
       <Route path="/vehicles/tourisme" element={<VehiclesPage type="tourisme" />} />
       <Route path="/vehicles/utilitaire" element={<VehiclesPage type="utilitaire" />} />

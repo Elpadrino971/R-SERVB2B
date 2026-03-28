@@ -18,6 +18,7 @@ import jwt
 import asyncio
 import resend
 from enum import Enum
+import secrets
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -35,6 +36,7 @@ SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'adl-secret-key-2024')
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
 
 # Emergent LLM Key
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
@@ -74,6 +76,12 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    # Onboarding fields
+    company_name: Optional[str] = None
+    siret: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = "France"
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -396,33 +404,160 @@ async def register(user_data: UserCreate):
     existing = await db.users.find_one({"email": user_data.email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     user_dict = user_data.model_dump()
     user_dict["password"] = hash_password(user_data.password)
     user_dict["id"] = str(uuid.uuid4())
     user_dict["created_at"] = datetime.now(timezone.utc).isoformat()
     user_dict["is_active"] = True
-    
+    # Onboarding / email verification fields
+    verification_token = secrets.token_urlsafe(32)
+    user_dict["email_verified"] = False
+    user_dict["verification_token"] = verification_token
+    user_dict["verification_token_expires"] = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+    user_dict["onboarding_status"] = "pending_email"  # pending_email → pending_kbis → pending_review → approved
+    user_dict["kbis_url"] = None
+    user_dict["kbis_filename"] = None
+
     await db.users.insert_one(user_dict)
-    
+
+    # Send verification email
+    await send_verification_email(user_dict["email"], user_dict["first_name"], verification_token)
+
     token = create_token(user_dict["id"], user_dict["role"])
-    # Remove sensitive/internal fields for response
-    user_response = {k: v for k, v in user_dict.items() if k not in ["password", "_id"]}
-    
+    user_response = {k: v for k, v in user_dict.items() if k not in ["password", "_id", "verification_token"]}
+
     return TokenResponse(access_token=token, user=user_response)
+
+
+@api_router.get("/auth/verify-email")
+async def verify_email(token: str = Query(...)):
+    user = await db.users.find_one({"verification_token": token})
+    if not user:
+        raise HTTPException(status_code=400, detail="Token invalide ou expiré")
+
+    expires = datetime.fromisoformat(user["verification_token_expires"])
+    if datetime.now(timezone.utc) > expires:
+        raise HTTPException(status_code=400, detail="Token expiré. Demandez un nouveau lien.")
+
+    onboarding_status = user.get("onboarding_status", "pending_email")
+    new_status = "pending_kbis" if onboarding_status == "pending_email" else onboarding_status
+
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "email_verified": True,
+            "verification_token": None,
+            "onboarding_status": new_status
+        }}
+    )
+    return {"message": "Email vérifié avec succès", "onboarding_status": new_status}
+
+
+@api_router.post("/auth/resend-verification")
+async def resend_verification(user: dict = Depends(get_current_user)):
+    if user.get("email_verified"):
+        raise HTTPException(status_code=400, detail="Email déjà vérifié")
+
+    verification_token = secrets.token_urlsafe(32)
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "verification_token": verification_token,
+            "verification_token_expires": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+        }}
+    )
+    await send_verification_email(user["email"], user["first_name"], verification_token)
+    return {"message": "Email de vérification renvoyé"}
+
+
+@api_router.post("/auth/upload-kbis")
+async def upload_kbis(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user)
+):
+    allowed_ext = {".pdf", ".jpg", ".jpeg", ".png"}
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in allowed_ext:
+        raise HTTPException(status_code=400, detail="Format non accepté. Utilisez PDF, JPG ou PNG.")
+
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Fichier trop grand (max 10 Mo)")
+
+    file_id = str(uuid.uuid4())
+    filename = f"{file_id}{file_ext}"
+    kbis_dir = ROOT_DIR / "uploads" / "kbis"
+    kbis_dir.mkdir(parents=True, exist_ok=True)
+
+    async with aiofiles.open(kbis_dir / filename, 'wb') as f:
+        await f.write(contents)
+
+    kbis_url = f"/uploads/kbis/{filename}"
+    new_status = "pending_review" if user.get("email_verified") else "pending_email"
+
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "kbis_url": kbis_url,
+            "kbis_filename": file.filename,
+            "onboarding_status": new_status
+        }}
+    )
+    return {"url": kbis_url, "filename": file.filename, "onboarding_status": new_status}
+
+
+async def send_verification_email(email: str, first_name: str, token: str):
+    if not resend.api_key:
+        logger.warning("Resend API key not set — verification email not sent")
+        return
+    verify_url = f"{FRONTEND_URL}/verify-email?token={token}"
+    try:
+        params = {
+            "from": SENDER_EMAIL,
+            "to": [email],
+            "subject": "Vérifiez votre adresse email — Auto Discount Location",
+            "html": f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #3D3A6B; padding: 24px; text-align: center;">
+                    <h1 style="color: white; margin: 0;">Auto Discount Location</h1>
+                </div>
+                <div style="padding: 32px; background: #f9fafb;">
+                    <h2 style="color: #3D3A6B;">Bonjour {first_name},</h2>
+                    <p>Merci de vous être inscrit sur la plateforme B2B d'Auto Discount Location.</p>
+                    <p>Pour activer votre compte, veuillez cliquer sur le bouton ci-dessous :</p>
+                    <div style="text-align: center; margin: 32px 0;">
+                        <a href="{verify_url}"
+                           style="background: #F5A623; color: white; padding: 14px 28px;
+                                  border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+                            Vérifier mon email
+                        </a>
+                    </div>
+                    <p style="color: #666; font-size: 14px;">Ce lien expire dans 24 heures.</p>
+                    <p style="color: #666; font-size: 14px;">Si vous n'avez pas créé de compte, ignorez cet email.</p>
+                </div>
+                <div style="padding: 16px; text-align: center; color: #999; font-size: 12px;">
+                    © Auto Discount Location — Guadeloupe, Martinique, Guyane, Saint-Martin
+                </div>
+            </div>
+            """
+        }
+        await asyncio.to_thread(resend.Emails.send, params)
+    except Exception as e:
+        logger.error(f"Failed to send verification email: {e}")
 
 @api_router.post("/auth/login", response_model=TokenResponse)
 async def login(credentials: UserLogin):
     user = await db.users.find_one({"email": credentials.email})
     if not user or not verify_password(credentials.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     if not user.get("is_active", True):
         raise HTTPException(status_code=403, detail="Account is deactivated")
-    
+
     token = create_token(user["id"], user["role"])
-    user_response = {k: v for k, v in user.items() if k not in ["password", "_id"]}
-    
+    user_response = {k: v for k, v in user.items() if k not in ["password", "_id", "verification_token"]}
+
     return TokenResponse(access_token=token, user=user_response)
 
 @api_router.get("/auth/me")
