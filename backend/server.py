@@ -440,8 +440,12 @@ async def verify_email(token: str = Query(...)):
     if datetime.now(timezone.utc) > expires:
         raise HTTPException(status_code=400, detail="Token expiré. Demandez un nouveau lien.")
 
-    onboarding_status = user.get("onboarding_status", "pending_email")
-    new_status = "pending_kbis" if onboarding_status == "pending_email" else onboarding_status
+    # If KBIS already uploaded, go straight to pending_review
+    if user.get("kbis_url"):
+        new_status = "pending_review"
+    else:
+        onboarding_status = user.get("onboarding_status", "pending_email")
+        new_status = "pending_kbis" if onboarding_status == "pending_email" else onboarding_status
 
     await db.users.update_one(
         {"id": user["id"]},
@@ -494,17 +498,16 @@ async def upload_kbis(
         await f.write(contents)
 
     kbis_url = f"/uploads/kbis/{filename}"
-    new_status = "pending_review" if user.get("email_verified") else "pending_email"
-
+    # Always set pending_review after KBIS upload — admin can review regardless of email verification
     await db.users.update_one(
         {"id": user["id"]},
         {"$set": {
             "kbis_url": kbis_url,
             "kbis_filename": file.filename,
-            "onboarding_status": new_status
+            "onboarding_status": "pending_review"
         }}
     )
-    return {"url": kbis_url, "filename": file.filename, "onboarding_status": new_status}
+    return {"url": kbis_url, "filename": file.filename, "onboarding_status": "pending_review"}
 
 
 async def send_verification_email(email: str, first_name: str, token: str):
@@ -1487,19 +1490,34 @@ async def update_training_progress(
 @api_router.get("/admin/users")
 async def admin_get_users(
     role: Optional[str] = None,
-    page: int = 1,
+    status: Optional[str] = None,
+    onboarding_status: Optional[str] = None,
+    search: Optional[str] = None,
+    offset: int = 0,
     limit: int = 20,
     admin: dict = Depends(require_admin)
 ):
     query = {}
     if role:
         query["role"] = role
-    
-    skip = (page - 1) * limit
-    users = await db.users.find(query, {"_id": 0, "password": 0}).skip(skip).limit(limit).to_list(limit)
+    if status == "active":
+        query["is_active"] = True
+    elif status == "inactive":
+        query["is_active"] = False
+    if onboarding_status:
+        query["onboarding_status"] = onboarding_status
+    if search:
+        query["$or"] = [
+            {"email": {"$regex": search, "$options": "i"}},
+            {"first_name": {"$regex": search, "$options": "i"}},
+            {"last_name": {"$regex": search, "$options": "i"}},
+            {"company_name": {"$regex": search, "$options": "i"}},
+        ]
+
+    users = await db.users.find(query, {"_id": 0, "password": 0, "verification_token": 0}).skip(offset).limit(limit).to_list(limit)
     total = await db.users.count_documents(query)
-    
-    return {"users": users, "total": total, "page": page, "pages": (total + limit - 1) // limit}
+
+    return {"users": users, "total": total, "offset": offset, "limit": limit}
 
 @api_router.put("/admin/users/{user_id}")
 async def admin_update_user(user_id: str, updates: Dict[str, Any], admin: dict = Depends(require_admin)):
